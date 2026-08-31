@@ -1,0 +1,17 @@
+{
+  "name": "Bielle-Tirant",
+  "short_name": "Bielle-Tirant",
+  "description": "Calcul des efforts dans un treillis plan pour la methode bielle-tirant.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eef1f5",
+  "theme_color": "#22303f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

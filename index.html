@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#22303f">
+<title>Bielle-Tirant &middot; efforts dans un treillis plan</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{
+  --bg:#eef1f5; --panel:#ffffff; --line:#d3d9e2; --line2:#e6eaf0;
+  --ink:#161c28; --ink2:#5a6576; --ink3:#8a94a6;
+  --tie:#c42b2b;        /* traction : tirant, acier */
+  --strut:#2e5eaa;      /* compression : bielle, beton */
+  --nul:#9aa3b2;
+  --sup:#157a6e;        /* appuis et reactions */
+  --load:#161c28;
+  --accent:#22303f;
+  --ok:#157a6e; --warn:#b26a00; --err:#c42b2b;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  font-family:var(--sans); color:var(--ink); background:var(--bg);
+  font-size:14px; line-height:1.45; -webkit-text-size-adjust:100%;
+}
+header{
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding:12px 18px; background:var(--panel); border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:5;
+}
+.brand{display:flex; flex-direction:column; line-height:1.15}
+.brand b{font-size:16px; letter-spacing:.2px}
+.brand span{font-size:12px; color:var(--ink2)}
+header .spacer{flex:1}
+select,button,input{font-family:inherit; font-size:13px}
+select,.btn{
+  border:1px solid var(--line); background:#fff; color:var(--ink);
+  padding:7px 11px; border-radius:7px; cursor:pointer;
+}
+.btn.primary{background:var(--accent); color:#fff; border-color:var(--accent)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:transparent}
+#install{display:none}
+
+main{
+  display:grid; grid-template-columns:minmax(0,1.35fr) minmax(340px,1fr);
+  gap:14px; padding:14px; align-items:start;
+}
+@media(max-width:900px){ main{grid-template-columns:1fr} }
+
+.card{background:var(--panel); border:1px solid var(--line); border-radius:10px}
+.card > h2{
+  font-size:12.5px; font-weight:600; color:var(--ink2);
+  margin:0; padding:10px 14px; border-bottom:1px solid var(--line2);
+  display:flex; align-items:center; gap:8px;
+}
+.drawwrap{padding:0; overflow:hidden}
+#svg{display:block; width:100%; height:auto; background:
+  linear-gradient(0deg,rgba(0,0,0,.015) 1px,transparent 1px) 0 0/22px 22px,
+  linear-gradient(90deg,rgba(0,0,0,.015) 1px,transparent 1px) 0 0/22px 22px, #fff;}
+
+.status{padding:8px 14px; font-size:12.5px; border-bottom:1px solid var(--line2)}
+.status.ok{color:var(--ok)} .status.err{color:var(--err)} .status.warn{color:var(--warn)}
+
+section.io{padding:6px 0 2px}
+.grp{padding:8px 12px 12px; border-bottom:1px solid var(--line2)}
+.grp:last-child{border-bottom:0}
+.grp h3{
+  margin:2px 0 8px; font-size:11.5px; font-weight:600; color:var(--ink2);
+  display:flex; align-items:center; gap:8px;
+}
+.grp h3 .dot{width:9px;height:9px;border-radius:2px;display:inline-block}
+.dot.tie{background:var(--tie)} .dot.strut{background:var(--strut)} .dot.sup{background:var(--sup)}
+table{width:100%; border-collapse:collapse}
+th,td{padding:3px 4px; text-align:left; font-size:12.5px; vertical-align:middle}
+th{color:var(--ink3); font-weight:500; font-size:11px}
+td input,td select{
+  width:100%; padding:5px 6px; border:1px solid var(--line); border-radius:6px;
+  background:#fbfcfe; color:var(--ink);
+}
+td.num input{font-family:var(--mono); text-align:right}
+td.chk{text-align:center; width:44px}
+td.del{width:30px; text-align:center}
+.iconbtn{border:0; background:transparent; color:var(--ink3); cursor:pointer; font-size:15px; padding:2px 6px; border-radius:6px}
+.iconbtn:hover{color:var(--err); background:#faecec}
+.addrow{margin-top:6px}
+.addrow button{font-size:12px; padding:5px 9px; color:var(--strut); border-color:var(--line)}
+
+.results table td.n{font-family:var(--mono); text-align:right}
+.tag{display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600}
+.tag.iso{background:#e7f3ef; color:var(--ok)}
+.tag.hyp{background:#fdf1e0; color:var(--warn)}
+.tag.mec{background:#fae6e6; color:var(--err)}
+.pill{font-family:var(--mono); font-size:11px; color:var(--ink2)}
+.nat-tie{color:var(--tie); font-weight:600}
+.nat-strut{color:var(--strut); font-weight:600}
+.nat-nul{color:var(--nul)}
+.diag{padding:8px 14px; font-size:12px}
+.diag .w{color:var(--warn)} .diag .e{color:var(--err)}
+.legend{display:flex; gap:14px; padding:8px 14px; font-size:11.5px; color:var(--ink2); flex-wrap:wrap}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.legend i{width:16px;height:3px;border-radius:2px;display:inline-block}
+.optmini th{width:130px; color:var(--ink2); font-weight:500; font-size:12px; vertical-align:middle}
+.optmini td{padding:4px 4px}
+.optmini td.angle input{width:56px; display:inline-block; text-align:right; font-family:var(--mono)}
+.optmini select{width:100%}
+.optline{font-size:13px; padding:2px 0 4px}
+details.notice{margin:0 14px 16px; font-size:12.5px; color:var(--ink2)}
+details.notice summary{cursor:pointer; color:var(--ink); padding:8px 0; font-weight:600}
+details.notice p{margin:6px 0}
+code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius:5px; font-size:12px}
+.foot{padding:6px 18px 22px; color:var(--ink3); font-size:11.5px}
+
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <b>Bielle-Tirant</b>
+    <span>efforts dans un treillis plan &middot; methode des rigidites</span>
+  </div>
+  <div class="spacer"></div>
+  <label class="pill" for="preset">Modele</label>
+  <select id="preset" aria-label="Modele de depart"></select>
+  <button id="recalc" class="btn ghost" title="Recalculer et recadrer">Recalculer</button>
+  <button id="install" class="btn primary">Installer</button>
+</header>
+
+<main>
+  <div class="card drawwrap">
+    <div id="status" class="status">Chargement...</div>
+    <svg id="svg" role="img" aria-label="Schema du treillis"></svg>
+    <div class="legend">
+      <span><i style="background:#c42b2b"></i> tirant (traction)</span>
+      <span><i style="background:#2e5eaa"></i> bielle (compression)</span>
+      <span><i style="background:#157a6e"></i> appui</span>
+      <span><i style="background:#161c28"></i> charge</span>
+      <span class="pill">epaisseur &prop; |N|</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>Donnees du modele</h2>
+      <section class="io">
+        <div class="grp">
+          <h3>Variables</h3>
+          <table><thead><tr><th>Nom</th><th>Valeur</th><th></th></tr></thead>
+          <tbody id="tb-vars"></tbody></table>
+          <div class="addrow"><button id="add-var">+ variable</button></div>
+        </div>
+        <div class="grp">
+          <h3>Noeuds <span class="pill">coordonnees parametriques</span></h3>
+          <table><thead><tr><th>Id</th><th>x</th><th>y</th><th></th></tr></thead>
+          <tbody id="tb-nodes"></tbody></table>
+          <div class="addrow"><button id="add-node">+ noeud</button></div>
+        </div>
+        <div class="grp">
+          <h3><span class="dot tie"></span><span class="dot strut"></span> Barres</h3>
+          <table><thead><tr><th>Noeud i</th><th>Noeud j</th><th>Type</th><th></th></tr></thead>
+          <tbody id="tb-mem"></tbody></table>
+          <div class="addrow"><button id="add-mem">+ barre</button></div>
+        </div>
+        <div class="grp">
+          <h3><span class="dot sup"></span> Appuis <span class="pill">blocage par degre de liberte</span></h3>
+          <table><thead><tr><th>Noeud</th><th>bloque x</th><th>bloque y</th><th></th></tr></thead>
+          <tbody id="tb-sup"></tbody></table>
+          <div class="addrow"><button id="add-sup">+ appui</button></div>
+        </div>
+        <div class="grp">
+          <h3>Charges nodales</h3>
+          <table><thead><tr><th>Noeud</th><th>Fx</th><th>Fy</th><th></th></tr></thead>
+          <tbody id="tb-load"></tbody></table>
+          <div class="addrow"><button id="add-load">+ charge</button></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h2>Generateur de topologie</h2>
+      <div class="grp">
+        <table class="optmini">
+          <tr><th>Domaine x</th><td class="angle">min <input id="gen-xmin" inputmode="decimal"> &middot; max <input id="gen-xmax" inputmode="decimal"></td></tr>
+          <tr><th>Domaine y</th><td class="angle">min <input id="gen-ymin" inputmode="decimal"> &middot; max <input id="gen-ymax" inputmode="decimal"></td></tr>
+          <tr><th>Grille</th><td class="angle"><input id="gen-nx" inputmode="numeric"> &times; <input id="gen-ny" inputmode="numeric"> <span class="pill">noeuds</span></td></tr>
+          <tr><th>Rapport &sigma;<sub>t</sub>/&sigma;<sub>c</sub></th><td class="angle"><input id="gen-sig" inputmode="decimal"></td></tr>
+        </table>
+        <div class="pill" style="margin-top:8px; line-height:1.5">Tirants limites aux directions horizontale, verticale et 45&deg;. Les appuis et charges du modele courant sont rabattus sur la grille.</div>
+        <div style="margin-top:10px"><button id="run-gen" class="btn primary">Generer le modele</button></div>
+      </div>
+      <div id="gen-result" class="io" style="padding:6px 14px 12px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h2>Optimisation de geometrie</h2>
+      <div class="grp">
+        <table class="optmini">
+          <tr><th>Objectif</th><td>
+            <select id="opt-obj">
+              <option value="tie_max">Tirant critique max|N|</option>
+              <option value="steel_volume">Volume d'acier &Sigma;|N|&middot;L (tirants)</option>
+              <option value="total_volume">Volume total &Sigma;|N|&middot;L (toutes barres)</option>
+            </select>
+          </td></tr>
+          <tr><th>Angle bielle-tirant</th><td class="angle">
+            min <input id="opt-tmin" inputmode="decimal"> &middot; max <input id="opt-tmax" inputmode="decimal"> <span class="pill">degres</span>
+          </td></tr>
+        </table>
+        <h3 style="margin-top:10px">Variables libres <span class="pill">bornes de recherche</span></h3>
+        <table><thead><tr><th>Variable</th><th>min</th><th>max</th><th></th></tr></thead>
+        <tbody id="tb-free"></tbody></table>
+        <div class="addrow"><button id="add-free">+ variable libre</button></div>
+        <div style="margin-top:10px"><button id="run-opt" class="btn primary">Optimiser</button></div>
+      </div>
+      <div id="opt-result" class="io" style="padding:6px 14px 12px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h2>Resultats</h2>
+      <div id="results" class="io" style="padding:10px 14px"></div>
+      <details class="notice">
+        <summary>Hypotheses et reserves</summary>
+        <p>Treillis plan articule : chaque barre ne reprend qu'un effort axial. Convention retenue : effort positif en traction (tirant), negatif en compression (bielle).</p>
+        <p>Pour un modele isostatique, les efforts sont independants des rigidites ; aucune section ni module n'est demande. Un modele hyperstatique donnerait des efforts dependant des rigidites relatives, non saisies ici.</p>
+        <p>Unites coherentes libres ; l'affichage suppose des forces en <code>kN</code> et des longueurs en <code>m</code>. Coordonnees et charges acceptent des expressions : <code>a/2</code>, <code>h*tan(pi/6)</code>, <code>-P</code>.</p>
+        <p>Aide au calcul. L'equilibre fourni est celui du treillis saisi ; l'admissibilite du modele bielle-tirant, la verification des bielles, tirants et noeuds selon EN 1992-1-1 (2004 &sect;6.5 ; 2023 &sect;8.5) et la responsabilite de conception restent celles de l'ingenieur.</p>
+      </details>
+    </div>
+    <div class="foot">Donnees traitees localement dans le navigateur. Aucun envoi reseau.</div>
+  </div>
+</main>
+
+<script>
+/* =====================================================================
+   Noyau de calcul bielle-tirant : treillis plan par methode des rigidites.
+   Aucune dependance externe. Fonctionne dans le navigateur et dans Node.
+   Convention d'effort : traction positive (tirant), compression negative
+   (bielle). Reference normative du modele : EN 1992-1-1:2004 section 6.5
+   (2e generation EN 1992-1-1:2023 section 8.5).
+   ===================================================================== */
+
+(function (root) {
+  "use strict";
+
+  /* -------------------------------------------------------------------
+     1. Evaluateur d'expressions arithmetiques (coordonnees parametriques)
+     Grammaire par descente recursive, sans eval(), pour la securite.
+        expr   := term (('+' | '-') term)*
+        term   := factor (('*' | '/') factor)*
+        factor := unary ('^' factor)?          (puissance associative a droite)
+        unary  := ('+' | '-') unary | atom
+        atom   := number | ident | func '(' expr ')' | '(' expr ')'
+     Fonctions admises : sin cos tan asin acos atan sqrt abs exp ln
+     Constantes admises : pi, e. Angles en radians.
+     ------------------------------------------------------------------- */
+
+  var FUNCS = {
+    sin: Math.sin, cos: Math.cos, tan: Math.tan,
+    asin: Math.asin, acos: Math.acos, atan: Math.atan,
+    sqrt: Math.sqrt, abs: Math.abs, exp: Math.exp, ln: Math.log
+  };
+  var CONSTS = { pi: Math.PI, e: Math.E };
+
+  function tokenize(s) {
+    var toks = [], i = 0, n = s.length;
+    while (i < n) {
+      var c = s[i];
+      if (c === " " || c === "\t") { i++; continue; }
+      if ("+-*/^()".indexOf(c) >= 0) { toks.push({ t: c }); i++; continue; }
+      if (/[0-9.]/.test(c)) {
+        var j = i;
+        while (j < n && /[0-9.eE]/.test(s[j])) {
+          // gerer notation scientifique 1e-3
+          if ((s[j] === "e" || s[j] === "E") && (s[j + 1] === "+" || s[j + 1] === "-")) j++;
+          j++;
+        }
+        var num = parseFloat(s.slice(i, j));
+        if (isNaN(num)) throw new Error("Nombre invalide dans l'expression : " + s.slice(i, j));
+        toks.push({ t: "num", v: num }); i = j; continue;
+      }
+      if (/[a-zA-Z_]/.test(c)) {
+        var k = i;
+        while (k < n && /[a-zA-Z_0-9]/.test(s[k])) k++;
+        toks.push({ t: "id", v: s.slice(i, k) }); i = k; continue;
+      }
+      throw new Error("Caractere inattendu dans l'expression : '" + c + "'");
+    }
+    toks.push({ t: "eof" });
+    return toks;
+  }
+
+  function evalExpr(str, vars) {
+    if (typeof str === "number") return str;
+    if (str === null || str === undefined || String(str).trim() === "")
+      throw new Error("Expression vide.");
+    var toks = tokenize(String(str)), pos = 0;
+    function peek() { return toks[pos]; }
+    function next() { return toks[pos++]; }
+    function expect(t) {
+      if (peek().t !== t) throw new Error("Attendu '" + t + "', trouve '" + peek().t + "'.");
+      return next();
+    }
+    function parseExpr() {
+      var v = parseTerm();
+      while (peek().t === "+" || peek().t === "-") {
+        var op = next().t, r = parseTerm();
+        v = op === "+" ? v + r : v - r;
+      }
+      return v;
+    }
+    function parseTerm() {
+      var v = parseFactor();
+      while (peek().t === "*" || peek().t === "/") {
+        var op = next().t, r = parseFactor();
+        v = op === "*" ? v * r : v / r;
+      }
+      return v;
+    }
+    function parseFactor() {
+      var v = parseUnary();
+      if (peek().t === "^") { next(); var r = parseFactor(); v = Math.pow(v, r); }
+      return v;
+    }
+    function parseUnary() {
+      if (peek().t === "+") { next(); return parseUnary(); }
+      if (peek().t === "-") { next(); return -parseUnary(); }
+      return parseAtom();
+    }
+    function parseAtom() {
+      var tk = peek();
+      if (tk.t === "num") { next(); return tk.v; }
+      if (tk.t === "(") { next(); var v = parseExpr(); expect(")"); return v; }
+      if (tk.t === "id") {
+        next();
+        if (peek().t === "(") {
+          var fn = FUNCS[tk.v];
+          if (!fn) throw new Error("Fonction inconnue : " + tk.v);
+          next(); var arg = parseExpr(); expect(")");
+          return fn(arg);
+        }
+        // les variables de l'utilisateur priment sur les constantes,
+        // car des symboles d'une lettre (e : excentricite, a, h) sont courants.
+        if (vars && vars.hasOwnProperty(tk.v)) {
+          var val = vars[tk.v];
+          return typeof val === "number" ? val : evalExpr(val, vars);
+        }
+        if (CONSTS.hasOwnProperty(tk.v)) return CONSTS[tk.v];
+        throw new Error("Variable non definie : " + tk.v);
+      }
+      throw new Error("Expression incomplete.");
+    }
+    var result = parseExpr();
+    if (peek().t !== "eof") throw new Error("Symboles superflus en fin d'expression.");
+    return result;
+  }
+
+  /* -------------------------------------------------------------------
+     2. Resolution d'un systeme lineaire dense par elimination de Gauss
+        avec pivot partiel. Retourne null si la matrice est singuliere.
+     ------------------------------------------------------------------- */
+
+  function solveLinear(A, b) {
+    var n = b.length;
+    // copie de travail
+    var M = A.map(function (r) { return r.slice(); });
+    var x = b.slice();
+    for (var col = 0; col < n; col++) {
+      // pivot partiel
+      var piv = col, maxv = Math.abs(M[col][col]);
+      for (var r = col + 1; r < n; r++) {
+        if (Math.abs(M[r][col]) > maxv) { maxv = Math.abs(M[r][col]); piv = r; }
+      }
+      if (maxv < 1e-12) return null; // singuliere : mecanisme ou instabilite
+      if (piv !== col) {
+        var tmp = M[col]; M[col] = M[piv]; M[piv] = tmp;
+        var tb = x[col]; x[col] = x[piv]; x[piv] = tb;
+      }
+      var d = M[col][col];
+      for (var rr = col + 1; rr < n; rr++) {
+        var f = M[rr][col] / d;
+        if (f === 0) continue;
+        for (var cc = col; cc < n; cc++) M[rr][cc] -= f * M[col][cc];
+        x[rr] -= f * x[col];
+      }
+    }
+    // remontee
+    var sol = new Array(n);
+    for (var i = n - 1; i >= 0; i--) {
+      var s = x[i];
+      for (var jc = i + 1; jc < n; jc++) s -= M[i][jc] * sol[jc];
+      sol[i] = s / M[i][i];
+    }
+    return sol;
+  }
+
+  /* -------------------------------------------------------------------
+     3. Solveur de treillis plan.
+        model = {
+          variables : { a:4, h:2, ... },
+          nodes     : [ { id, x, y } ],            x,y : nombre ou expression
+          members   : [ { i, j, type, EA } ],      type : "auto"|"tie"|"strut"
+          supports  : [ { node, dx, dy } ],        dx,dy : booleen (bloque)
+          loads     : [ { node, fx, fy } ]         valeurs ou expressions
+        }
+        Retourne un objet resultat detaille.
+     ------------------------------------------------------------------- */
+
+  function solveTruss(model) {
+    var vars = model.variables || {};
+    var warn = [], err = [];
+
+    // ---- geometrie des noeuds
+    var idIndex = {};
+    var nodes = model.nodes.map(function (nd, k) {
+      idIndex[nd.id] = k;
+      return {
+        id: nd.id,
+        x: evalExpr(nd.x, vars),
+        y: evalExpr(nd.y, vars)
+      };
+    });
+    var nn = nodes.length, ndof = 2 * nn;
+
+    // ---- barres
+    var members = model.members.map(function (m, k) {
+      var a = idIndex[m.i], b = idIndex[m.j];
+      if (a === undefined || b === undefined)
+        throw new Error("Barre " + (k + 1) + " : noeud inconnu (" + m.i + ", " + m.j + ").");
+      var dx = nodes[b].x - nodes[a].x, dy = nodes[b].y - nodes[a].y;
+      var L = Math.hypot(dx, dy);
+      if (L < 1e-9) throw new Error("Barre " + (k + 1) + " : longueur nulle.");
+      var EA = m.EA ? evalExpr(m.EA, vars) : 1; // isostatique : valeur sans effet
+      return { i: a, j: b, ii: m.i, jj: m.j, type: m.type || "auto",
+               L: L, c: dx / L, s: dy / L, EA: EA };
+    });
+
+    // ---- assemblage de la matrice de rigidite globale
+    var K = [];
+    for (var q = 0; q < ndof; q++) K.push(new Array(ndof).fill(0));
+    members.forEach(function (m) {
+      var c = m.c, s = m.s, k = m.EA / m.L;
+      var cc = c * c, ss = s * s, cs = c * s;
+      var ke = [
+        [ cc,  cs, -cc, -cs],
+        [ cs,  ss, -cs, -ss],
+        [-cc, -cs,  cc,  cs],
+        [-cs, -ss,  cs,  ss]
+      ];
+      var map = [2 * m.i, 2 * m.i + 1, 2 * m.j, 2 * m.j + 1];
+      for (var a = 0; a < 4; a++)
+        for (var b = 0; b < 4; b++)
+          K[map[a]][map[b]] += k * ke[a][b];
+    });
+
+    // ---- vecteur de charges
+    var F = new Array(ndof).fill(0);
+    (model.loads || []).forEach(function (ld) {
+      var idx = idIndex[ld.node];
+      if (idx === undefined) throw new Error("Charge sur noeud inconnu : " + ld.node);
+      if (ld.fx) F[2 * idx]     += evalExpr(ld.fx, vars);
+      if (ld.fy) F[2 * idx + 1] += evalExpr(ld.fy, vars);
+    });
+
+    // ---- conditions d'appui
+    var fixed = new Array(ndof).fill(false);
+    var nReac = 0;
+    (model.supports || []).forEach(function (sp) {
+      var idx = idIndex[sp.node];
+      if (idx === undefined) throw new Error("Appui sur noeud inconnu : " + sp.node);
+      if (sp.dx) { fixed[2 * idx] = true; nReac++; }
+      if (sp.dy) { fixed[2 * idx + 1] = true; nReac++; }
+    });
+
+    // ---- controle de degre d'hyperstaticite (necessaire, non suffisant)
+    var b = members.length, j = nn;
+    var count = b + nReac - 2 * j; // <0 mecanisme, =0 isostatique, >0 hyperstatique
+    var determinacy = count < 0 ? "mecanisme" : (count === 0 ? "isostatique" : "hyperstatique degre " + count);
+
+    // ---- reduction aux ddl libres et resolution
+    var freeIdx = [];
+    for (var d = 0; d < ndof; d++) if (!fixed[d]) freeIdx.push(d);
+    var nf = freeIdx.length;
+    var Kff = [], Ff = [];
+    for (var r0 = 0; r0 < nf; r0++) {
+      var row = new Array(nf);
+      for (var c0 = 0; c0 < nf; c0++) row[c0] = K[freeIdx[r0]][freeIdx[c0]];
+      Kff.push(row); Ff.push(F[freeIdx[r0]]);
+    }
+    var uf = nf > 0 ? solveLinear(Kff, Ff) : [];
+    var singular = (uf === null);
+
+    var u = new Array(ndof).fill(0);
+    if (!singular) freeIdx.forEach(function (gi, li) { u[gi] = uf[li]; });
+
+    // ---- efforts normaux dans les barres : N = (EA/L)(c(uj-ui)+s(vj-vi))
+    var forces = members.map(function (m) {
+      var N = 0;
+      if (!singular) {
+        var dui = u[2 * m.j]     - u[2 * m.i];
+        var dvi = u[2 * m.j + 1] - u[2 * m.i + 1];
+        N = (m.EA / m.L) * (m.c * dui + m.s * dvi);
+      }
+      var declared = m.type;
+      var actual = N > 1e-9 ? "tie" : (N < -1e-9 ? "strut" : "nul");
+      var conflict = (declared === "tie" && actual === "strut") ||
+                     (declared === "strut" && actual === "tie");
+      return { i: m.ii, j: m.jj, L: m.L, N: N, type: actual, declared: declared, conflict: conflict };
+    });
+
+    // ---- reactions : R = K.u - F, releve aux ddl bloques
+    var reactions = [];
+    if (!singular) {
+      for (var rd = 0; rd < ndof; rd++) {
+        if (!fixed[rd]) continue;
+        var v = 0;
+        for (var cd = 0; cd < ndof; cd++) v += K[rd][cd] * u[cd];
+        v -= F[rd];
+        var node = nodes[Math.floor(rd / 2)].id, comp = (rd % 2 === 0) ? "Rx" : "Ry";
+        reactions.push({ node: node, comp: comp, value: v });
+      }
+    }
+
+    // ---- controle d'equilibre : residu maximal aux noeuds libres
+    var residual = 0;
+    if (!singular) {
+      var Ku = new Array(ndof).fill(0);
+      for (var ri = 0; ri < ndof; ri++) {
+        if (fixed[ri]) continue;
+        var acc = 0;
+        for (var ci = 0; ci < ndof; ci++) acc += K[ri][ci] * u[ci];
+        residual = Math.max(residual, Math.abs(acc - F[ri]));
+      }
+    }
+
+    // ---- diagnostics
+    if (singular) err.push("Systeme singulier : le modele comporte un mecanisme ou une instabilite. Verifiez les appuis et la triangulation.");
+    if (count < 0 && !singular) warn.push("Le decompte barres plus reactions annonce un mecanisme, pourtant le systeme s'est resolu. Verifiez le modele.");
+    forces.forEach(function (f, k) {
+      if (f.conflict) warn.push("Barre " + f.i + "-" + f.j + " declaree " +
+        (f.declared === "tie" ? "tirant" : "bielle") + " mais calculee en " +
+        (f.type === "tie" ? "traction" : "compression") + ".");
+    });
+
+    return {
+      nodes: nodes, forces: forces, reactions: reactions,
+      determinacy: determinacy, hyperstaticDegree: count,
+      singular: singular, residual: residual,
+      warnings: warn, errors: err
+    };
+  }
+
+  /* -------------------------------------------------------------------
+     4. Optimisation de geometrie a topologie fixee.
+     Certaines variables sont declarees libres avec des bornes ; on cherche
+     les valeurs qui minimisent un objectif sous contrainte d'angle
+     admissible entre bielles et tirants aux noeuds partages.
+     Objectifs (tous fondes sur l'equilibre, donc exacts en isostatique) :
+        tie_max      : effort maximal d'un tirant (dimensionnement)
+        steel_volume : somme |N|.L sur les tirants (proxy de volume d'acier, Schlaich)
+        total_volume : somme |N|.L sur toutes les barres
+     ------------------------------------------------------------------- */
+
+  function objAndAngles(res, objective) {
+    var byId = {}; res.nodes.forEach(function (n) { byId[n.id] = n; });
+    var incid = {};
+    res.forces.forEach(function (f) {
+      var A = byId[f.i], B = byId[f.j];
+      var dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1;
+      var tension = f.N > 1e-9, compression = f.N < -1e-9;
+      (incid[f.i] = incid[f.i] || []).push({ ux: dx / L, uy: dy / L, tension: tension, compression: compression });
+      (incid[f.j] = incid[f.j] || []).push({ ux: -dx / L, uy: -dy / L, tension: tension, compression: compression });
+    });
+    var minA = Infinity, maxA = -Infinity, any = false;
+    Object.keys(incid).forEach(function (id) {
+      var arr = incid[id];
+      for (var a = 0; a < arr.length; a++) for (var b = a + 1; b < arr.length; b++) {
+        var u = arr[a], v = arr[b];
+        if ((u.tension && v.compression) || (u.compression && v.tension)) {
+          var d = Math.max(-1, Math.min(1, u.ux * v.ux + u.uy * v.uy));
+          var ang = Math.acos(d) * 180 / Math.PI; any = true;
+          if (ang < minA) minA = ang; if (ang > maxA) maxA = ang;
+        }
+      }
+    });
+    var obj = 0;
+    res.forces.forEach(function (f) {
+      if (objective === "tie_max") { if (f.N > 1e-9) obj = Math.max(obj, f.N); }
+      else if (objective === "steel_volume") { if (f.N > 1e-9) obj += f.N * f.L; }
+      else { obj += Math.abs(f.N) * f.L; }
+    });
+    return { objective: obj, minAngle: any ? minA : null, maxAngle: any ? maxA : null, hasAngles: any };
+  }
+
+  function evaluatePoint(model, overrides, objective, thetaMin, thetaMax) {
+    var trial = {
+      variables: Object.assign({}, model.variables, overrides),
+      nodes: model.nodes, members: model.members,
+      supports: model.supports, loads: model.loads
+    };
+    var res, ok = true, msg = null;
+    try { res = solveTruss(trial); } catch (e) { ok = false; msg = e.message; }
+    if (!ok) return { feasible: false, objective: Infinity, error: msg };
+    if (res.singular) return { feasible: false, objective: Infinity, singular: true, minAngle: null, maxAngle: null };
+    var oa = objAndAngles(res, objective);
+    var feasible = true;
+    if (oa.hasAngles) feasible = oa.minAngle >= thetaMin - 1e-6 && oa.maxAngle <= thetaMax + 1e-6;
+    return { feasible: feasible, objective: oa.objective, minAngle: oa.minAngle, maxAngle: oa.maxAngle };
+  }
+
+  // Nelder-Mead borne (bornes par projection), infaisabilite penalisee.
+  function nelderMead(fn, x0, lo, hi, opts) {
+    opts = opts || {};
+    var n = x0.length, iters = opts.iters || 400;
+    var alpha = 1, gamma = 2, rho = 0.5, sigma = 0.5;
+    function clamp(x) { return x.map(function (v, i) { return Math.max(lo[i], Math.min(hi[i], v)); }); }
+    var simplex = [x0.slice()];
+    for (var i = 0; i < n; i++) {
+      var p = x0.slice();
+      var step = (hi[i] - lo[i]) * 0.25 || 1;
+      p[i] = Math.min(hi[i], p[i] + step);
+      simplex.push(clamp(p));
+    }
+    var fval = simplex.map(function (p) { return fn(p); });
+    function order() {
+      var idx = fval.map(function (_, k) { return k; }).sort(function (a, b) { return fval[a] - fval[b]; });
+      simplex = idx.map(function (k) { return simplex[k]; });
+      fval = idx.map(function (k) { return fval[k]; });
+    }
+    for (var it = 0; it < iters; it++) {
+      order();
+      var cen = new Array(n).fill(0);
+      for (var s = 0; s < n; s++) for (var d = 0; d < n; d++) cen[d] += simplex[s][d] / n;
+      var xr = clamp(cen.map(function (c, d) { return c + alpha * (c - simplex[n][d]); }));
+      var fr = fn(xr);
+      if (fr < fval[0]) {
+        var xe = clamp(cen.map(function (c, d) { return c + gamma * (xr[d] - c); }));
+        var fe = fn(xe);
+        if (fe < fr) { simplex[n] = xe; fval[n] = fe; } else { simplex[n] = xr; fval[n] = fr; }
+      } else if (fr < fval[n - 1]) { simplex[n] = xr; fval[n] = fr; }
+      else {
+        var xc = clamp(cen.map(function (c, d) { return c + rho * (simplex[n][d] - c); }));
+        var fc = fn(xc);
+        if (fc < fval[n]) { simplex[n] = xc; fval[n] = fc; }
+        else {
+          for (var k = 1; k <= n; k++) {
+            simplex[k] = clamp(simplex[0].map(function (b, d) { return b + sigma * (simplex[k][d] - b); }));
+            fval[k] = fn(simplex[k]);
+          }
+        }
+      }
+    }
+    order();
+    return { x: simplex[0], f: fval[0] };
+  }
+
+  function optimize(model, spec) {
+    var fv = spec.freeVars || [];
+    var objective = spec.objective || "tie_max";
+    var thetaMin = spec.thetaMin != null ? spec.thetaMin : 0;
+    var thetaMax = spec.thetaMax != null ? spec.thetaMax : 90;
+    var reso = spec.resolution || 80;
+    if (!fv.length) throw new Error("Aucune variable libre declaree.");
+
+    function overridesFrom(vec) {
+      var o = {}; fv.forEach(function (v, i) { o[v.name] = vec[i]; }); return o;
+    }
+
+    // penalisation de l'infaisabilite pour l'optimiseur continu
+    function penalized(vec) {
+      var p = evaluatePoint(model, overridesFrom(vec), objective, thetaMin, thetaMax);
+      if (!isFinite(p.objective)) return 1e12;
+      var pen = 0;
+      if (p.minAngle != null) {
+        if (p.minAngle < thetaMin) pen += (thetaMin - p.minAngle);
+        if (p.maxAngle > thetaMax) pen += (p.maxAngle - thetaMax);
+      }
+      return p.objective * (1 + 0.0) + pen * 1e6;
+    }
+
+    var result = { mode: null, best: null, curve: null, freeVars: fv, objective: objective };
+
+    if (fv.length === 1) {
+      var v = fv[0], curve = [], best = null;
+      var step = (v.max - v.min) / reso;
+      for (var k = 0; k <= reso; k++) {
+        var x = v.min + step * k;
+        var p = evaluatePoint(model, overridesFrom([x]), objective, thetaMin, thetaMax);
+        curve.push({ x: x, obj: isFinite(p.objective) ? p.objective : null, feasible: !!p.feasible, minAngle: p.minAngle, maxAngle: p.maxAngle });
+        if (p.feasible && (best === null || p.objective < best.obj)) best = { x: x, obj: p.objective, minAngle: p.minAngle, maxAngle: p.maxAngle };
+      }
+      result.mode = "sweep1d"; result.curve = curve;
+      result.best = best ? { vars: overridesFrom([best.x]), objective: best.obj, minAngle: best.minAngle, maxAngle: best.maxAngle } : null;
+    } else {
+      // >=2 variables : Nelder-Mead avec redemarrages, puis coupe 1D pour le trace
+      var lo = fv.map(function (v) { return v.min; }), hi = fv.map(function (v) { return v.max; });
+      var bestNM = null;
+      for (var r = 0; r < 6; r++) {
+        var x0 = fv.map(function (v) { return v.min + (v.max - v.min) * (r === 0 ? 0.5 : Math.random()); });
+        var nm = nelderMead(penalized, x0, lo, hi, { iters: 400 });
+        if (!bestNM || nm.f < bestNM.f) bestNM = nm;
+      }
+      var pe = evaluatePoint(model, overridesFrom(bestNM.x), objective, thetaMin, thetaMax);
+      result.mode = "nelder";
+      result.best = pe.feasible ? { vars: overridesFrom(bestNM.x), objective: pe.objective, minAngle: pe.minAngle, maxAngle: pe.maxAngle } : null;
+      // coupe le long de la premiere variable libre, les autres figees a l'optimum
+      var slice = [], step2 = (fv[0].max - fv[0].min) / reso;
+      for (var kk = 0; kk <= reso; kk++) {
+        var xx = fv[0].min + step2 * kk;
+        var ov = overridesFrom(bestNM.x); ov[fv[0].name] = xx;
+        var ps = evaluatePoint(model, ov, objective, thetaMin, thetaMax);
+        slice.push({ x: xx, obj: isFinite(ps.objective) ? ps.objective : null, feasible: !!ps.feasible });
+      }
+      result.curve = slice;
+    }
+    return result;
+  }
+
+  /* -------------------------------------------------------------------
+     5. Programme lineaire par simplexe deux phases (regle de Bland).
+        Forme standard : min c.x  sous  A x = b,  x >= 0.
+        Retourne { x, feasible, unbounded }.
+     ------------------------------------------------------------------- */
+  function simplex(A, b, c) {
+    var m = A.length, n = c.length, EPS = 1e-9;
+    A = A.map(function (r) { return r.slice(); }); b = b.slice();
+    for (var i = 0; i < m; i++) if (b[i] < 0) { b[i] = -b[i]; for (var j = 0; j < n; j++) A[i][j] = -A[i][j]; }
+    var N = n + m;                       // colonnes : originales + artificielles
+    var T = [];
+    for (i = 0; i < m; i++) {
+      var row = new Array(N + 1).fill(0);
+      for (j = 0; j < n; j++) row[j] = A[i][j];
+      row[n + i] = 1; row[N] = b[i]; T.push(row);
+    }
+    var basis = []; for (i = 0; i < m; i++) basis.push(n + i);
+
+    function pivot(l, e) {
+      var pv = T[l][e];
+      for (var k = 0; k <= N; k++) T[l][k] /= pv;
+      for (var r = 0; r < m; r++) {
+        if (r === l) continue;
+        var f = T[r][e];
+        if (Math.abs(f) < 1e-14) continue;
+        for (var k2 = 0; k2 <= N; k2++) T[r][k2] -= f * T[l][k2];
+      }
+      basis[l] = e;
+    }
+    function run(cost, colMax) {   // colMax : colonnes >= colMax interdites d'entrer
+      for (var guard = 0; guard < 20000; guard++) {
+        // couts reduits r_j = cost_j - sum_i cost_{basis_i} * T[i][j]
+        var entering = -1;
+        for (var jj = 0; jj < colMax; jj++) {
+          var rj = cost[jj];
+          for (var ii = 0; ii < m; ii++) rj -= cost[basis[ii]] * T[ii][jj];
+          if (rj < -1e-9) { entering = jj; break; }   // Bland : premier indice
+        }
+        if (entering < 0) return true;
+        var leave = -1, best = Infinity;
+        for (var l2 = 0; l2 < m; l2++) {
+          if (T[l2][entering] > 1e-11) {
+            var ratio = T[l2][N] / T[l2][entering];
+            if (ratio < best - 1e-12 || (Math.abs(ratio - best) < 1e-12 && (leave < 0 || basis[l2] < basis[leave]))) {
+              best = ratio; leave = l2;
+            }
+          }
+        }
+        if (leave < 0) return false;   // non borne
+        pivot(leave, entering);
+      }
+      return true;
+    }
+
+    // phase 1 : minimiser la somme des artificielles
+    var c1 = new Array(N).fill(0); for (i = 0; i < m; i++) c1[n + i] = 1;
+    run(c1, N);
+    var infeas = 0; for (i = 0; i < m; i++) if (basis[i] >= n) infeas += T[i][N];
+    if (infeas > 1e-6) return { x: new Array(n).fill(0), feasible: false };
+
+    // chasser les artificielles basiques a valeur nulle
+    for (i = 0; i < m; i++) {
+      if (basis[i] >= n) {
+        var done = false;
+        for (j = 0; j < n && !done; j++) if (Math.abs(T[i][j]) > 1e-9) { pivot(i, j); done = true; }
+      }
+    }
+    // phase 2 : cout original, artificielles interdites d'entrer
+    var c2 = new Array(N).fill(0); for (j = 0; j < n; j++) c2[j] = c[j];
+    var bounded = run(c2, n);
+    var x = new Array(n).fill(0);
+    for (i = 0; i < m; i++) if (basis[i] < n) x[basis[i]] = T[i][N];
+    return { x: x, feasible: true, unbounded: !bounded };
+  }
+
+  /* -------------------------------------------------------------------
+     6. Generateur de topologie par structure de sol.
+        Sur une grille de noeuds candidats a l'interieur d'un contour
+        rectangulaire, on relie toutes les barres non redondantes puis on
+        minimise le volume de matiere (somme |N|.L / contrainte admissible)
+        sous la seule condition d'equilibre. Les barres survivantes forment
+        le modele bielle-tirant. Les tirants (traction) ne sont autorises
+        que selon les directions horizontale, verticale et 45 degres.
+        Base mecanique : treillis de Michell ; esprit EN 1992-1-1 6.5.1.
+     ------------------------------------------------------------------- */
+  function generate(spec) {
+    var d = spec.domain, nx = spec.nx, ny = spec.ny;
+    var sigmaRatio = spec.sigmaRatio || 1;   // sigma_t / sigma_c
+    var keepTol = spec.keepTol != null ? spec.keepTol : 0.02;
+    var angTol = spec.angTol || 2;            // tolerance directionnelle (deg)
+    var warnings = [];
+
+    // grille de noeuds candidats
+    var gx = [], gy = [];
+    for (var ix = 0; ix < nx; ix++) gx.push(d.xmin + (d.xmax - d.xmin) * (nx === 1 ? 0 : ix / (nx - 1)));
+    for (var iy = 0; iy < ny; iy++) gy.push(d.ymin + (d.ymax - d.ymin) * (ny === 1 ? 0 : iy / (ny - 1)));
+    var pts = [];
+    for (iy = 0; iy < ny; iy++) for (ix = 0; ix < nx; ix++) pts.push({ x: gx[ix], y: gy[iy] });
+    var np = pts.length;
+    var diag = Math.hypot(d.xmax - d.xmin, d.ymax - d.ymin) || 1;
+
+    function nearest(x, y) {
+      var bi = 0, bd = Infinity;
+      for (var k = 0; k < np; k++) { var dd = Math.hypot(pts[k].x - x, pts[k].y - y); if (dd < bd) { bd = dd; bi = k; } }
+      return bi;
+    }
+    // appuis et charges rabattus sur le noeud le plus proche
+    var sup = {};   // index -> {dx,dy}
+    (spec.supports || []).forEach(function (s) {
+      var k = nearest(s.x, s.y); sup[k] = sup[k] || { dx: false, dy: false };
+      sup[k].dx = sup[k].dx || !!s.dx; sup[k].dy = sup[k].dy || !!s.dy;
+    });
+    var loadVec = new Array(2 * np).fill(0);
+    var loadedNodes = {};
+    (spec.loads || []).forEach(function (ld) {
+      var k = nearest(ld.x, ld.y); loadVec[2 * k] += ld.fx || 0; loadVec[2 * k + 1] += ld.fy || 0;
+      loadedNodes[k] = true;
+    });
+
+    // barres candidates : paires non redondantes (pas de passage par un noeud intermediaire)
+    function passesThrough(a, bb) {
+      var ax = pts[a].x, ay = pts[a].y, bx = pts[bb].x, by = pts[bb].y;
+      for (var k = 0; k < np; k++) {
+        if (k === a || k === bb) continue;
+        var cx = pts[k].x - ax, cy = pts[k].y - ay, ex = bx - ax, ey = by - ay;
+        var cross = Math.abs(cx * ey - cy * ex) / diag;
+        if (cross > 1e-6 * diag) continue;
+        var dot = cx * ex + cy * ey, len2 = ex * ex + ey * ey;
+        if (dot > 1e-9 && dot < len2 - 1e-9) return true;
+      }
+      return false;
+    }
+    function tensionOK(a, bb) {
+      var ang = Math.atan2(pts[bb].y - pts[a].y, pts[bb].x - pts[a].x) * 180 / Math.PI;
+      ang = ((ang % 180) + 180) % 180;
+      return [0, 45, 90, 135].some(function (t) { return Math.abs(ang - t) < angTol; });
+    }
+    var bars = [];
+    for (var a = 0; a < np; a++) for (var bb = a + 1; bb < np; bb++) {
+      if (passesThrough(a, bb)) continue;
+      var L = Math.hypot(pts[bb].x - pts[a].x, pts[bb].y - pts[a].y);
+      bars.push({ a: a, b: bb, L: L, ux: (pts[bb].x - pts[a].x) / L, uy: (pts[bb].y - pts[a].y) / L, tOK: tensionOK(a, bb) });
+    }
+
+    // variables LP : pour chaque barre, compression (toujours) et traction (si direction admise)
+    var vars = [];   // {bar, sense:+1 traction / -1 compression}
+    bars.forEach(function (bar, bi) {
+      vars.push({ bar: bi, sense: -1, cost: bar.L });               // compression, sigma_c = 1
+      if (bar.tOK) vars.push({ bar: bi, sense: +1, cost: bar.L / sigmaRatio });  // traction
+    });
+    var nv = vars.length;
+
+    // equations d'equilibre : par noeud et direction libre (non appuyee)
+    var rows = [], rhs = [];
+    for (var k = 0; k < np; k++) {
+      for (var dir = 0; dir < 2; dir++) {
+        var fixed = sup[k] && (dir === 0 ? sup[k].dx : sup[k].dy);
+        if (fixed) continue;                       // reaction absorbee, pas d'equation
+        var row = new Array(nv).fill(0);
+        vars.forEach(function (v, vi) {
+          var bar = bars[v.bar];
+          var comp = dir === 0 ? bar.ux : bar.uy;   // unit a->b
+          // effort sur noeud = N * unit(noeud -> autre) ; N = sense * amplitude
+          if (bar.a === k) row[vi] += v.sense * comp;
+          else if (bar.b === k) row[vi] += v.sense * (-comp);
+        });
+        rows.push(row); rhs.push(-loadVec[2 * k + dir]);  // sum(effort sur noeud) = -charge externe
+      }
+    }
+
+    var cost = vars.map(function (v) { return v.cost; });
+    var sol = simplex(rows, rhs, cost);
+    if (!sol.feasible) { warnings.push("Aucun treillis en equilibre trouve : verifier appuis et charges."); return { feasible: false, warnings: warnings }; }
+
+    // efforts par barre : N = traction - compression
+    var Nbar = new Array(bars.length).fill(0);
+    vars.forEach(function (v, vi) { Nbar[v.bar] += v.sense * sol.x[vi]; });
+    var maxN = 0; Nbar.forEach(function (N) { maxN = Math.max(maxN, Math.abs(N)); });
+    if (maxN < 1e-9) { warnings.push("Solution triviale (efforts nuls)."); return { feasible: false, warnings: warnings }; }
+
+    // barres retenues et noeuds utilises
+    var keep = [], used = {};
+    bars.forEach(function (bar, bi) {
+      if (Math.abs(Nbar[bi]) > keepTol * maxN) { keep.push({ bar: bi, N: Nbar[bi] }); used[bar.a] = true; used[bar.b] = true; }
+    });
+    Object.keys(sup).forEach(function (k) { used[k] = true; });
+    Object.keys(loadedNodes).forEach(function (k) { used[k] = true; });
+
+    // construction du modele de sortie (ids lisibles)
+    var idOf = {}, outNodes = [];
+    Object.keys(used).map(Number).sort(function (a, b) { return a - b; }).forEach(function (k, idx) {
+      var id = "n" + (idx + 1); idOf[k] = id;
+      outNodes.push({ id: id, x: pts[k].x, y: pts[k].y });
+    });
+    var outMembers = keep.map(function (m) {
+      return { i: idOf[bars[m.bar].a], j: idOf[bars[m.bar].b], type: m.N > 0 ? "tie" : "strut", N: m.N };
+    });
+    var outSup = Object.keys(sup).map(function (k) { return { node: idOf[k], dx: sup[k].dx, dy: sup[k].dy }; });
+    var outLoads = [];
+    (spec.loads || []).forEach(function (ld) {
+      var k = nearest(ld.x, ld.y); outLoads.push({ node: idOf[k], fx: ld.fx, fy: ld.fy });
+    });
+
+    // nettoyage : fusion des chaines colineaires de meme nature a travers un
+    // noeud intermediaire de degre 2, ni charge ni appuye (sinon ce noeud est
+    // un mecanisme pour la methode des rigidites bien qu'en equilibre).
+    var merged = mergeCollinearChains(outNodes, outMembers, outSup, outLoads);
+    outNodes = merged.nodes; outMembers = merged.members;
+
+    return {
+      feasible: true, nodes: outNodes, members: outMembers, supports: outSup, loads: outLoads,
+      barCount: bars.length, keptCount: outMembers.length, warnings: warnings
+    };
+  }
+
+  function mergeCollinearChains(nodes, members, supports, loads) {
+    var prot = {}; supports.forEach(function (s) { prot[s.node] = true; }); loads.forEach(function (l) { prot[l.node] = true; });
+    var byId = {}; nodes.forEach(function (n) { byId[n.id] = n; });
+    var changed = true;
+    while (changed) {
+      changed = false;
+      var adj = {};
+      members.forEach(function (m, idx) { (adj[m.i] = adj[m.i] || []).push(idx); (adj[m.j] = adj[m.j] || []).push(idx); });
+      for (var id in adj) {
+        if (prot[id] || adj[id].length !== 2) continue;
+        var i1 = adj[id][0], i2 = adj[id][1], m1 = members[i1], m2 = members[i2];
+        if (m1.type !== m2.type) continue;
+        var o1 = m1.i === id ? m1.j : m1.i, o2 = m2.i === id ? m2.j : m2.i;
+        if (o1 === o2) continue;
+        var A = byId[id], P = byId[o1], Q = byId[o2];
+        var v1x = P.x - A.x, v1y = P.y - A.y, v2x = Q.x - A.x, v2y = Q.y - A.y;
+        var cross = Math.abs(v1x * v2y - v1y * v2x);
+        var scale = (Math.hypot(v1x, v1y) * Math.hypot(v2x, v2y)) || 1;
+        if (cross / scale > 1e-6) continue;                 // non colineaires
+        if (v1x * v2x + v1y * v2y > 0) continue;            // meme cote : pas un passage
+        var newN = Math.abs(m1.N) >= Math.abs(m2.N) ? m1.N : m2.N;
+        var kept = []; members.forEach(function (m, idx) { if (idx !== i1 && idx !== i2) kept.push(m); });
+        kept.push({ i: o1, j: o2, type: m1.type, N: newN });
+        members = kept;
+        nodes = nodes.filter(function (n) { return n.id !== id; });
+        byId = {}; nodes.forEach(function (n) { byId[n.id] = n; });
+        changed = true; break;
+      }
+    }
+    return { nodes: nodes, members: members };
+  }
+
+  var API = { evalExpr: evalExpr, solveLinear: solveLinear, solveTruss: solveTruss,
+              optimize: optimize, nelderMead: nelderMead, simplex: simplex, generate: generate };
+  if (typeof module !== "undefined" && module.exports) module.exports = API;
+  else root.STM = API;
+
+})(typeof self !== "undefined" ? self : this);
+
+</script>
+<script>
+/* Application bielle-tirant. STM (noyau) est deja charge dans la page.
+   Modele = source unique de verite ; toute edition mute le modele puis
+   declenche un recalcul et un retrace. Les noeuds ont une cle interne
+   stable (key) et un identifiant affiche (id) editable ; barres, appuis
+   et charges referencent la cle, ce qui protege des renommages. */
+(function () {
+  "use strict";
+  var TIE = "#c42b2b", STRUT = "#2e5eaa", NUL = "#9aa3b2",
+      SUP = "#157a6e", LOAD = "#161c28", NODE = "#161c28";
+
+  /* ---------------- presets ---------------- */
+  function P(id, x, y) { return { id: id, x: x, y: y }; }
+  var PRESETS = {
+    vide: {
+      name: "Gabarit vide",
+      variables: [], nodes: [], members: [], supports: [], loads: [],
+      opt: { objective: "tie_max", thetaMin: "30", thetaMax: "60", free: [] }
+    },
+    poutre: {
+      name: "Poutre-cloison, charge centree",
+      variables: [["P", "100"], ["a", "4"], ["h", "2"]],
+      nodes: [P("N1", "0", "0"), P("N2", "a", "0"), P("N3", "a/2", "h")],
+      members: [["N1", "N2", "tie"], ["N1", "N3", "strut"], ["N2", "N3", "strut"]],
+      supports: [["N1", true, true], ["N2", false, true]],
+      loads: [["N3", "0", "-P"]],
+      opt: { objective: "tie_max", thetaMin: "30", thetaMax: "60", free: [["h", "1", "3"]] }
+    },
+    console: {
+      name: "Console courte dissymetrique",
+      variables: [["F", "300"], ["a", "0.30"], ["z", "0.45"]],
+      nodes: [P("C", "0", "0"), P("B", "0", "z"), P("A", "a", "z")],
+      members: [["A", "B", "tie"], ["A", "C", "strut"]],
+      supports: [["B", true, true], ["C", true, true]],
+      loads: [["A", "0", "-F"]],
+      opt: { objective: "tie_max", thetaMin: "30", thetaMax: "60", free: [["z", "0.30", "0.90"]] }
+    },
+    semelle: {
+      name: "Semelle sur deux pieux",
+      variables: [["N", "1000"], ["e", "2.4"], ["d", "0.6"]],
+      nodes: [P("Pieu1", "0", "0"), P("Pieu2", "e", "0"), P("Pot", "e/2", "d")],
+      members: [["Pieu1", "Pieu2", "tie"], ["Pieu1", "Pot", "strut"], ["Pieu2", "Pot", "strut"]],
+      supports: [["Pieu1", true, true], ["Pieu2", false, true]],
+      loads: [["Pot", "0", "-N"]],
+      opt: { objective: "tie_max", thetaMin: "30", thetaMax: "60", free: [["d", "0.4", "1.2"]] }
+    }
+  };
+
+  /* ---------------- etat ---------------- */
+  var state = null, lastRes = null, lastEM = null;
+
+  function loadPreset(pkey) {
+    var p = PRESETS[pkey];
+    var k = 0, keyOf = {};
+    state = { nextKey: 0, variables: [], nodes: [], members: [], supports: [], loads: [] };
+    p.variables.forEach(function (v) { state.variables.push({ name: v[0], value: v[1] }); });
+    p.nodes.forEach(function (nd) {
+      var key = state.nextKey++; keyOf[nd.id] = key;
+      state.nodes.push({ key: key, id: nd.id, x: nd.x, y: nd.y });
+    });
+    p.members.forEach(function (m) {
+      state.members.push({ key: state.nextKey++, i: keyOf[m[0]], j: keyOf[m[1]], type: m[2] });
+    });
+    p.supports.forEach(function (s) {
+      state.supports.push({ key: state.nextKey++, node: keyOf[s[0]], dx: s[1], dy: s[2] });
+    });
+    p.loads.forEach(function (l) {
+      state.loads.push({ key: state.nextKey++, node: keyOf[l[0]], fx: l[1], fy: l[2] });
+    });
+    var o = p.opt || { objective: "tie_max", thetaMin: "30", thetaMax: "60", free: [] };
+    state.opt = {
+      objective: o.objective, thetaMin: o.thetaMin, thetaMax: o.thetaMax,
+      free: (o.free || []).map(function (f) { return { name: f[0], min: f[1], max: f[2] }; })
+    };
+    setGenDefaults();
+  }
+
+  function computeBBox() {
+    var vars = {}; state.variables.forEach(function (v) { if (v.name) vars[v.name] = v.value; });
+    var xs = [], ys = [];
+    state.nodes.forEach(function (n) {
+      try { xs.push(STM.evalExpr(n.x, vars)); ys.push(STM.evalExpr(n.y, vars)); } catch (e) {}
+    });
+    if (!xs.length) return { xmin: 0, xmax: 1, ymin: 0, ymax: 1 };
+    return { xmin: Math.min.apply(null, xs), xmax: Math.max.apply(null, xs),
+             ymin: Math.min.apply(null, ys), ymax: Math.max.apply(null, ys) };
+  }
+  function setGenDefaults() {
+    var bb = computeBBox();
+    state.gen = {
+      xmin: String(round(bb.xmin, 4)), xmax: String(round(bb.xmax, 4)),
+      ymin: String(round(bb.ymin, 4)), ymax: String(round(bb.ymax, 4)),
+      nx: "3", ny: "3", sigmaRatio: "1"
+    };
+  }
+
+  function nodeById(key) { for (var i = 0; i < state.nodes.length; i++) if (state.nodes[i].key === key) return state.nodes[i]; return null; }
+
+  /* ---------------- construction du modele moteur ---------------- */
+  function buildEngineModel() {
+    var vars = {};
+    state.variables.forEach(function (v) {
+      if (v.name && v.name.trim() !== "") vars[v.name.trim()] = v.value;
+    });
+    var idOf = {};
+    state.nodes.forEach(function (n) { idOf[n.key] = n.id; });
+    return {
+      variables: vars,
+      nodes: state.nodes.map(function (n) { return { id: n.id, x: n.x, y: n.y }; }),
+      members: state.members.map(function (m) {
+        return { i: idOf[m.i], j: idOf[m.j], type: m.type };
+      }),
+      supports: state.supports.map(function (s) {
+        return { node: idOf[s.node], dx: !!s.dx, dy: !!s.dy };
+      }),
+      loads: state.loads.map(function (l) {
+        return { node: idOf[l.node], fx: l.fx, fy: l.fy };
+      })
+    };
+  }
+
+  /* ---------------- rendu des tables ---------------- */
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === "class") e.className = attrs[k];
+      else if (k === "html") e.innerHTML = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    }
+    (kids || []).forEach(function (c) { e.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function nodeOptions(selectedKey) {
+    return state.nodes.map(function (n) {
+      var o = el("option", { value: n.key }, [n.id]);
+      if (n.key === selectedKey) o.selected = true;
+      return o;
+    });
+  }
+
+  function renderVariables() {
+    var body = document.getElementById("tb-vars"); body.innerHTML = "";
+    state.variables.forEach(function (v, idx) {
+      var name = el("input", { value: v.name, placeholder: "nom" });
+      name.oninput = function () { v.name = name.value; recalc(); };
+      var val = el("input", { value: v.value, placeholder: "valeur" });
+      val.oninput = function () { v.value = val.value; recalc(); };
+      var del = el("button", { class: "iconbtn", title: "supprimer" }, ["\u00d7"]);
+      del.onclick = function () { state.variables.splice(idx, 1); renderAll(); };
+      body.appendChild(el("tr", null, [
+        el("td", null, [name]),
+        el("td", { class: "num" }, [val]),
+        el("td", { class: "del" }, [del])
+      ]));
+    });
+  }
+
+  function renderNodes() {
+    var body = document.getElementById("tb-nodes"); body.innerHTML = "";
+    state.nodes.forEach(function (n, idx) {
+      var id = el("input", { value: n.id });
+      id.oninput = function () { n.id = id.value; recalc(); };
+      var x = el("input", { value: n.x });
+      x.oninput = function () { n.x = x.value; recalc(); };
+      var y = el("input", { value: n.y });
+      y.oninput = function () { n.y = y.value; recalc(); };
+      var del = el("button", { class: "iconbtn", title: "supprimer" }, ["\u00d7"]);
+      del.onclick = function () {
+        var key = n.key;
+        state.nodes.splice(idx, 1);
+        state.members = state.members.filter(function (m) { return m.i !== key && m.j !== key; });
+        state.supports = state.supports.filter(function (s) { return s.node !== key; });
+        state.loads = state.loads.filter(function (l) { return l.node !== key; });
+        renderAll();
+      };
+      body.appendChild(el("tr", null, [
+        el("td", null, [id]),
+        el("td", { class: "num" }, [x]),
+        el("td", { class: "num" }, [y]),
+        el("td", { class: "del" }, [del])
+      ]));
+    });
+  }
+
+  function renderMembers() {
+    var body = document.getElementById("tb-mem"); body.innerHTML = "";
+    state.members.forEach(function (m, idx) {
+      var si = el("select", null, nodeOptions(m.i));
+      si.onchange = function () { m.i = parseInt(si.value, 10); recalc(); };
+      var sj = el("select", null, nodeOptions(m.j));
+      sj.onchange = function () { m.j = parseInt(sj.value, 10); recalc(); };
+      var ty = el("select", null, [
+        el("option", { value: "auto" }, ["auto"]),
+        el("option", { value: "tie" }, ["tirant"]),
+        el("option", { value: "strut" }, ["bielle"])
+      ]);
+      ty.value = m.type; ty.onchange = function () { m.type = ty.value; recalc(); };
+      var del = el("button", { class: "iconbtn", title: "supprimer" }, ["\u00d7"]);
+      del.onclick = function () { state.members.splice(idx, 1); renderAll(); };
+      body.appendChild(el("tr", null, [
+        el("td", null, [si]), el("td", null, [sj]),
+        el("td", null, [ty]), el("td", { class: "del" }, [del])
+      ]));
+    });
+  }
+
+  function renderSupports() {
+    var body = document.getElementById("tb-sup"); body.innerHTML = "";
+    state.supports.forEach(function (s, idx) {
+      var sn = el("select", null, nodeOptions(s.node));
+      sn.onchange = function () { s.node = parseInt(sn.value, 10); recalc(); };
+      var cx = el("input", { type: "checkbox" }); cx.checked = !!s.dx;
+      cx.onchange = function () { s.dx = cx.checked; recalc(); };
+      var cy = el("input", { type: "checkbox" }); cy.checked = !!s.dy;
+      cy.onchange = function () { s.dy = cy.checked; recalc(); };
+      var del = el("button", { class: "iconbtn", title: "supprimer" }, ["\u00d7"]);
+      del.onclick = function () { state.supports.splice(idx, 1); renderAll(); };
+      body.appendChild(el("tr", null, [
+        el("td", null, [sn]),
+        el("td", { class: "chk" }, [cx]),
+        el("td", { class: "chk" }, [cy]),
+        el("td", { class: "del" }, [del])
+      ]));
+    });
+  }
+
+  function renderLoads() {
+    var body = document.getElementById("tb-load"); body.innerHTML = "";
+    state.loads.forEach(function (l, idx) {
+      var ln = el("select", null, nodeOptions(l.node));
+      ln.onchange = function () { l.node = parseInt(ln.value, 10); recalc(); };
+      var fx = el("input", { value: l.fx });
+      fx.oninput = function () { l.fx = fx.value; recalc(); };
+      var fy = el("input", { value: l.fy });
+      fy.oninput = function () { l.fy = fy.value; recalc(); };
+      var del = el("button", { class: "iconbtn", title: "supprimer" }, ["\u00d7"]);
+      del.onclick = function () { state.loads.splice(idx, 1); renderAll(); };
+      body.appendChild(el("tr", null, [
+        el("td", null, [ln]),
+        el("td", { class: "num" }, [fx]),
+        el("td", { class: "num" }, [fy]),
+        el("td", { class: "del" }, [del])
+      ]));
+    });
+  }
+
+  /* ---------------- interface d'optimisation ---------------- */
+  function varNames() {
+    return state.variables.map(function (v) { return v.name; }).filter(function (n) { return n && n.trim() !== ""; });
+  }
+  function numOf(expr) {
+    var vars = {}; state.variables.forEach(function (v) { if (v.name) vars[v.name] = v.value; });
+    try { return STM.evalExpr(expr, vars); } catch (e) { return parseFloat(expr); }
+  }
+
+  function renderOpt() {
+    document.getElementById("opt-obj").value = state.opt.objective;
+    document.getElementById("opt-tmin").value = state.opt.thetaMin;
+    document.getElementById("opt-tmax").value = state.opt.thetaMax;
+    renderFreeVars();
+  }
+  function renderFreeVars() {
+    var body = document.getElementById("tb-free"); body.innerHTML = "";
+    var names = varNames();
+    state.opt.free.forEach(function (f, idx) {
+      var sel = el("select", null, names.map(function (n) {
+        var o = el("option", { value: n }, [n]); if (n === f.name) o.selected = true; return o;
+      }));
+      sel.onchange = function () { f.name = sel.value; };
+      var mn = el("input", { value: f.min }); mn.oninput = function () { f.min = mn.value; };
+      var mx = el("input", { value: f.max }); mx.oninput = function () { f.max = mx.value; };
+      var del = el("button", { class: "iconbtn", title: "supprimer" }, ["\u00d7"]);
+      del.onclick = function () { state.opt.free.splice(idx, 1); renderFreeVars(); };
+      body.appendChild(el("tr", null, [
+        el("td", null, [sel]),
+        el("td", { class: "num" }, [mn]),
+        el("td", { class: "num" }, [mx]),
+        el("td", { class: "del" }, [del])
+      ]));
+    });
+  }
+  function addFree() {
+    var names = varNames();
+    if (!names.length) { document.getElementById("opt-result").innerHTML =
+      '<div class="diag w">Declarez d\'abord une variable pour la rendre libre.</div>'; return; }
+    state.opt.free.push({ name: names[0], min: "0", max: "1" }); renderFreeVars();
+  }
+
+  function runOptimize() {
+    var host = document.getElementById("opt-result");
+    var names = varNames();
+    var free = state.opt.free.filter(function (f) { return names.indexOf(f.name) >= 0; })
+      .map(function (f) { return { name: f.name, min: numOf(f.min), max: numOf(f.max) }; });
+    if (!free.length) { host.innerHTML = '<div class="diag w">Aucune variable libre valide. Ajoutez-en une.</div>'; return; }
+    for (var i = 0; i < free.length; i++) {
+      if (!(free[i].max > free[i].min)) { host.innerHTML = '<div class="diag e">Bornes invalides pour ' + free[i].name + ' : max doit exceder min.</div>'; return; }
+    }
+    var tmin = numOf(state.opt.thetaMin), tmax = numOf(state.opt.thetaMax);
+    var em;
+    try { em = buildEngineModel(); } catch (e) { host.innerHTML = '<div class="diag e">Modele invalide : ' + e.message + '</div>'; return; }
+    var res;
+    try {
+      res = STM.optimize(em, { freeVars: free, objective: state.opt.objective, thetaMin: tmin, thetaMax: tmax, resolution: 100 });
+    } catch (e) { host.innerHTML = '<div class="diag e">Optimisation impossible : ' + e.message + '</div>'; return; }
+
+    if (res.best) {
+      // reporter l'optimum dans la geometrie
+      Object.keys(res.best.vars).forEach(function (name) {
+        var v = state.variables.find(function (x) { return x.name === name; });
+        if (v) v.value = String(round(res.best.vars[name], 5));
+      });
+      renderVariables(); recalc();
+    }
+    renderOptResult(res, free);
+  }
+
+  function round(x, d) { var p = Math.pow(10, d); return Math.round(x * p) / p; }
+  var OBJ_LABEL = { tie_max: "tirant critique", steel_volume: "volume d'acier \u03a3|N|\u00b7L", total_volume: "volume total \u03a3|N|\u00b7L" };
+  var OBJ_UNIT = { tie_max: "kN", steel_volume: "kN\u00b7m", total_volume: "kN\u00b7m" };
+
+  function renderOptResult(res, free) {
+    var host = document.getElementById("opt-result"); host.innerHTML = "";
+    if (!res.best) {
+      host.appendChild(el("div", { class: "diag e" },
+        ["Aucune solution admissible dans les bornes et la bande d'angle donnees. Elargissez le domaine ou la bande."]));
+    } else {
+      var parts = Object.keys(res.best.vars).map(function (n) { return n + " = " + round(res.best.vars[n], 4); });
+      var line = el("div", { class: "optline" }, [
+        el("b", null, ["Optimum : "]),
+        document.createTextNode(parts.join(", ")),
+        el("span", { class: "pill" }, ["  " + OBJ_LABEL[res.objective] + " = " + round(res.best.objective, 2) + " " + OBJ_UNIT[res.objective]])
+      ]);
+      host.appendChild(line);
+      if (res.best.minAngle != null) {
+        host.appendChild(el("div", { class: "pill", style: "padding:2px 0" },
+          ["angle bielle-tirant : " + round(res.best.minAngle, 1) + "\u00b0 a " + round(res.best.maxAngle, 1) + "\u00b0"]));
+      }
+      host.appendChild(el("div", { class: "diag" }, [activeConstraintNote(res, free)]));
+    }
+    // trace de la courbe d'objectif
+    if (res.curve) host.appendChild(optChart(res, free));
+  }
+
+  function activeConstraintNote(res, free) {
+    var b = res.best, tmin = numOf(state.opt.thetaMin), tmax = numOf(state.opt.thetaMax);
+    if (b.maxAngle != null && Math.abs(b.maxAngle - tmax) < 0.6)
+      return "Contrainte active : angle maximal (" + tmax + "\u00b0). La bielle ne peut pas se redresser davantage.";
+    if (b.minAngle != null && Math.abs(b.minAngle - tmin) < 0.6)
+      return "Contrainte active : angle minimal (" + tmin + "\u00b0). La bielle ne peut pas se coucher davantage.";
+    var f0 = free[0], v0 = b.vars[f0.name];
+    if (Math.abs(v0 - f0.max) < (f0.max - f0.min) * 0.02)
+      return "Contrainte active : borne superieure de " + f0.name + ". Un domaine plus large abaisserait encore l'objectif.";
+    if (Math.abs(v0 - f0.min) < (f0.max - f0.min) * 0.02)
+      return "Contrainte active : borne inferieure de " + f0.name + ".";
+    return "Optimum interieur au domaine : un veritable compromis existe entre les chemins de charge.";
+  }
+
+  function optChart(res, free) {
+    var W = 470, H = 210, pad = 38;
+    var name = free[0].name;
+    var pts = res.curve.filter(function (c) { return c.obj != null && isFinite(c.obj); });
+    if (!pts.length) return el("div", { class: "pill" }, ["(courbe indisponible)"]);
+    var xmin = res.curve[0].x, xmax = res.curve[res.curve.length - 1].x;
+    var ymax = 0; pts.forEach(function (c) { if (c.obj > ymax) ymax = c.obj; });
+    ymax = ymax * 1.1 || 1;
+    function PX(x) { return pad + (x - xmin) / (xmax - xmin) * (W - pad - 12); }
+    function PY(y) { return H - pad - (y - 0) / ymax * (H - pad - 14); }
+    var g = ['<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="display:block">'];
+    // zones infaisables
+    for (var i = 0; i < res.curve.length - 1; i++) {
+      if (!res.curve[i].feasible) {
+        var x1 = PX(res.curve[i].x), x2 = PX(res.curve[i + 1].x);
+        g.push('<rect x="' + x1 + '" y="14" width="' + (x2 - x1 + 0.6) + '" height="' + (H - pad - 14) + '" fill="#c42b2b" opacity="0.08"/>');
+      }
+    }
+    // axes
+    g.push('<line x1="' + pad + '" y1="14" x2="' + pad + '" y2="' + (H - pad) + '" stroke="#c8cfd9"/>');
+    g.push('<line x1="' + pad + '" y1="' + (H - pad) + '" x2="' + (W - 12) + '" y2="' + (H - pad) + '" stroke="#c8cfd9"/>');
+    // courbe (segments verts si faisable, gris sinon)
+    for (var k = 0; k < res.curve.length - 1; k++) {
+      var a = res.curve[k], b = res.curve[k + 1];
+      if (a.obj == null || b.obj == null) continue;
+      var col = (a.feasible && b.feasible) ? "#22303f" : "#b9c0cc";
+      g.push('<line x1="' + PX(a.x) + '" y1="' + PY(a.obj) + '" x2="' + PX(b.x) + '" y2="' + PY(b.obj) + '" stroke="' + col + '" stroke-width="2"/>');
+    }
+    // optimum
+    if (res.best) {
+      var xo = res.best.vars[name], yo = res.best.objective;
+      g.push('<line x1="' + PX(xo) + '" y1="14" x2="' + PX(xo) + '" y2="' + (H - pad) + '" stroke="#157a6e" stroke-dasharray="4 3" stroke-width="1.5"/>');
+      g.push('<circle cx="' + PX(xo) + '" cy="' + PY(yo) + '" r="4.5" fill="#157a6e"/>');
+    }
+    // etiquettes
+    g.push('<text x="' + pad + '" y="' + (H - pad + 16) + '" font-size="11" fill="#5a6576">' + round(xmin, 3) + '</text>');
+    g.push('<text x="' + (W - 12) + '" y="' + (H - pad + 16) + '" font-size="11" fill="#5a6576" text-anchor="end">' + round(xmax, 3) + '</text>');
+    g.push('<text x="' + ((pad + W) / 2) + '" y="' + (H - 6) + '" font-size="11" fill="#5a6576" text-anchor="middle">' + name + '</text>');
+    g.push('<text x="6" y="20" font-size="11" fill="#5a6576">' + OBJ_LABEL[res.objective] + ' (' + OBJ_UNIT[res.objective] + ')</text>');
+    g.push('<text x="6" y="' + (H - pad) + '" font-size="11" fill="#5a6576">0</text>');
+    g.push('</svg>');
+    var wrap = el("div", { style: "margin-top:8px" });
+    wrap.innerHTML = g.join("");
+    return wrap;
+  }
+
+  /* ---------------- generateur de topologie ---------------- */
+  function renderGen() {
+    if (!state.gen) setGenDefaults();
+    var g = state.gen;
+    [["gen-xmin", "xmin"], ["gen-xmax", "xmax"], ["gen-ymin", "ymin"], ["gen-ymax", "ymax"],
+     ["gen-nx", "nx"], ["gen-ny", "ny"], ["gen-sig", "sigmaRatio"]].forEach(function (p) {
+      var e = document.getElementById(p[0]); if (e) e.value = g[p[1]];
+    });
+  }
+  function wireGen() {
+    [["gen-xmin", "xmin"], ["gen-xmax", "xmax"], ["gen-ymin", "ymin"], ["gen-ymax", "ymax"],
+     ["gen-nx", "nx"], ["gen-ny", "ny"], ["gen-sig", "sigmaRatio"]].forEach(function (p) {
+      var e = document.getElementById(p[0]);
+      e.oninput = function () { state.gen[p[1]] = e.value; };
+    });
+    document.getElementById("run-gen").onclick = generateModel;
+  }
+
+  function generateModel() {
+    var host = document.getElementById("gen-result"); host.innerHTML = "";
+    var nx = Math.round(numOf(state.gen.nx)), ny = Math.round(numOf(state.gen.ny));
+    if (!(nx >= 2 && ny >= 2)) { host.innerHTML = '<div class="diag e">La grille doit compter au moins 2 x 2 noeuds.</div>'; return; }
+    if (nx * ny > 42) { host.innerHTML = '<div class="diag e">Grille trop dense (' + (nx * ny) + ' noeuds). Restez sous 42 pour garder le calcul rapide.</div>'; return; }
+    var dom = { xmin: numOf(state.gen.xmin), xmax: numOf(state.gen.xmax), ymin: numOf(state.gen.ymin), ymax: numOf(state.gen.ymax) };
+    if (!(dom.xmax > dom.xmin && dom.ymax > dom.ymin)) { host.innerHTML = '<div class="diag e">Domaine invalide : max doit exceder min en x et en y.</div>'; return; }
+
+    var em; try { em = buildEngineModel(); } catch (e) { host.innerHTML = '<div class="diag e">Modele courant invalide : ' + e.message + '</div>'; return; }
+    var coord = {};
+    try { em.nodes.forEach(function (n) { coord[n.id] = { x: STM.evalExpr(n.x, em.variables), y: STM.evalExpr(n.y, em.variables) }; }); }
+    catch (e) { host.innerHTML = '<div class="diag e">Coordonnees illisibles : ' + e.message + '</div>'; return; }
+    var supports = em.supports.map(function (s) { return { x: coord[s.node].x, y: coord[s.node].y, dx: s.dx, dy: s.dy }; });
+    var loads = em.loads.map(function (l) {
+      var fx = 0, fy = 0;
+      try { fx = l.fx ? STM.evalExpr(l.fx, em.variables) : 0; } catch (e) {}
+      try { fy = l.fy ? STM.evalExpr(l.fy, em.variables) : 0; } catch (e) {}
+      return { x: coord[l.node].x, y: coord[l.node].y, fx: fx, fy: fy };
+    });
+    if (!supports.length || !loads.length) { host.innerHTML = '<div class="diag w">Definissez au moins un appui et une charge dans le modele courant avant de generer.</div>'; return; }
+
+    var g;
+    try { g = STM.generate({ domain: dom, nx: nx, ny: ny, sigmaRatio: numOf(state.gen.sigmaRatio), supports: supports, loads: loads, keepTol: 0.02 }); }
+    catch (e) { host.innerHTML = '<div class="diag e">Generation impossible : ' + e.message + '</div>'; return; }
+    if (!g.feasible) { host.innerHTML = '<div class="diag e">' + (g.warnings[0] || "Aucun treillis admissible trouve.") + '</div>'; return; }
+
+    applyGenerated(g);
+    renderAll();
+    var msg = el("div", { class: "optline" }, [
+      el("b", null, ["Modele genere. "]),
+      document.createTextNode(g.keptCount + " barres retenues sur " + g.barCount + " candidates. Corrigez-le dans les tableaux.")
+    ]);
+    host.appendChild(msg);
+    (g.warnings || []).forEach(function (w) { host.appendChild(el("div", { class: "diag w" }, [w])); });
+  }
+
+  function applyGenerated(g) {
+    var keyOf = {};
+    state.nodes = []; state.members = []; state.supports = []; state.loads = [];
+    g.nodes.forEach(function (n) {
+      var key = state.nextKey++; keyOf[n.id] = key;
+      state.nodes.push({ key: key, id: n.id, x: String(round(n.x, 5)), y: String(round(n.y, 5)) });
+    });
+    g.members.forEach(function (m) {
+      state.members.push({ key: state.nextKey++, i: keyOf[m.i], j: keyOf[m.j], type: m.type });
+    });
+    g.supports.forEach(function (s) {
+      state.supports.push({ key: state.nextKey++, node: keyOf[s.node], dx: !!s.dx, dy: !!s.dy });
+    });
+    g.loads.forEach(function (l) {
+      state.loads.push({ key: state.nextKey++, node: keyOf[l.node], fx: String(round(l.fx, 5)), fy: String(round(l.fy, 5)) });
+    });
+    state.opt.free = [];   // les variables parametriques ne pilotent plus la geometrie generee
+  }
+
+  function renderAll() { renderVariables(); renderNodes(); renderMembers(); renderSupports(); renderLoads(); renderGen(); renderOpt(); recalc(); }
+
+  /* ---------------- ajouts de lignes ---------------- */
+  function addVar() { state.variables.push({ name: "", value: "0" }); renderVariables(); }
+  function addNode() {
+    var id = "N" + (state.nodes.length + 1);
+    state.nodes.push({ key: state.nextKey++, id: id, x: "0", y: "0" }); renderAll();
+  }
+  function addMember() {
+    if (state.nodes.length < 2) return;
+    state.members.push({ key: state.nextKey++, i: state.nodes[0].key, j: state.nodes[1].key, type: "auto" });
+    renderMembers(); recalc();
+  }
+  function addSupport() {
+    if (!state.nodes.length) return;
+    state.supports.push({ key: state.nextKey++, node: state.nodes[0].key, dx: true, dy: true });
+    renderSupports(); recalc();
+  }
+  function addLoad() {
+    if (!state.nodes.length) return;
+    state.loads.push({ key: state.nextKey++, node: state.nodes[0].key, fx: "0", fy: "0" });
+    renderLoads(); recalc();
+  }
+
+  /* ---------------- calcul + rendu ---------------- */
+  function setStatus(cls, msg) {
+    var s = document.getElementById("status");
+    s.className = "status " + cls; s.textContent = msg;
+  }
+  function recalc() {
+    if (!state.nodes.length) { clearDraw(); setStatus("", "Ajoutez des noeuds pour commencer."); renderResults(null); return; }
+    var em;
+    try { em = buildEngineModel(); }
+    catch (e) { setStatus("err", "Entree invalide : " + e.message); return; }
+    var res;
+    try { res = STM.solveTruss(em); }
+    catch (e) { setStatus("err", "Calcul impossible : " + e.message); return; }
+    lastRes = res; lastEM = em;
+    draw(em, res); renderResults(res);
+    if (res.errors.length) setStatus("err", res.errors[0]);
+    else if (res.warnings.length) setStatus("warn", res.warnings.length + " avertissement(s). Modele " + res.determinacy + ".");
+    else setStatus("ok", "Modele " + res.determinacy + ". Equilibre verifie (residu " + res.residual.toExponential(1) + ").");
+  }
+
+  /* ---------------- resultats ---------------- */
+  function fmtN(x) { return (x >= 0 ? "+" : "\u2212") + Math.abs(x).toFixed(2); }
+  function renderResults(res) {
+    var host = document.getElementById("results");
+    host.innerHTML = "";
+    if (!res) return;
+    var tag = res.hyperstaticDegree < 0 ? ["mec", "mecanisme"]
+      : res.hyperstaticDegree === 0 ? ["iso", "isostatique"]
+      : ["hyp", res.determinacy];
+    host.appendChild(el("div", { class: "diag" }, [
+      el("span", { class: "tag " + tag[0] }, [tag[1]]),
+      document.createTextNode("  "),
+      el("span", { class: "pill" }, ["b+r\u22122j = " + res.hyperstaticDegree])
+    ]));
+
+    // efforts
+    var tb = el("tbody");
+    res.forces.forEach(function (f) {
+      var nat = f.type === "tie" ? ["nat-tie", "tirant (traction)"]
+        : f.type === "strut" ? ["nat-strut", "bielle (compression)"]
+        : ["nat-nul", "nul"];
+      tb.appendChild(el("tr", null, [
+        el("td", null, [f.i + " \u2013 " + f.j]),
+        el("td", { class: "n" }, [f.L.toFixed(3)]),
+        el("td", { class: "n " + nat[0] }, [fmtN(f.N)]),
+        el("td", { class: nat[0] }, [nat[1]])
+      ]));
+    });
+    host.appendChild(el("table", { class: "results" }, [
+      el("thead", null, [el("tr", null, [
+        el("th", null, ["Barre"]), el("th", null, ["L"]),
+        el("th", null, ["N (kN)"]), el("th", null, ["Nature"])
+      ])]), tb
+    ]));
+
+    // reactions
+    if (res.reactions.length) {
+      var rb = el("tbody");
+      res.reactions.forEach(function (r) {
+        rb.appendChild(el("tr", null, [
+          el("td", null, [r.node]),
+          el("td", null, [r.comp]),
+          el("td", { class: "n" }, [fmtN(r.value)])
+        ]));
+      });
+      host.appendChild(el("h3", { class: "rh" }, ["Reactions d'appui (kN)"]));
+      host.appendChild(el("table", { class: "results" }, [
+        el("thead", null, [el("tr", null, [
+          el("th", null, ["Noeud"]), el("th", null, ["Composante"]), el("th", null, ["Valeur"])
+        ])]), rb
+      ]));
+    }
+
+    // diagnostics
+    if (res.warnings.length || res.errors.length) {
+      var d = el("div", { class: "diag" });
+      res.errors.forEach(function (m) { d.appendChild(el("div", { class: "e" }, ["\u26a0 " + m])); });
+      res.warnings.forEach(function (m) { d.appendChild(el("div", { class: "w" }, ["\u26a0 " + m])); });
+      host.appendChild(d);
+    }
+  }
+
+  /* ---------------- trace SVG ---------------- */
+  var VBW = 1000, VBH = 680, PAD = 92;
+  function clearDraw() { document.getElementById("svg").innerHTML = ""; }
+  function draw(em, res) {
+    var svg = document.getElementById("svg");
+    svg.setAttribute("viewBox", "0 0 " + VBW + " " + VBH);
+    var nodes = res.nodes;
+    var byId = {}; nodes.forEach(function (n) { byId[n.id] = n; });
+    var xs = nodes.map(function (n) { return n.x; }), ys = nodes.map(function (n) { return n.y; });
+    var minx = Math.min.apply(null, xs), maxx = Math.max.apply(null, xs);
+    var miny = Math.min.apply(null, ys), maxy = Math.max.apply(null, ys);
+    var w = maxx - minx || 1, h = maxy - miny || 1;
+    var sc = Math.min((VBW - 2 * PAD) / w, (VBH - 2 * PAD) / h);
+    var ox = (VBW - sc * w) / 2, oy = (VBH - sc * h) / 2;
+    function X(x) { return ox + (x - minx) * sc; }
+    function Y(y) { return VBH - (oy + (y - miny) * sc); } // axe y vers le haut
+
+    var maxN = 0;
+    res.forces.forEach(function (f) { maxN = Math.max(maxN, Math.abs(f.N)); });
+    function wN(N) { return maxN > 1e-9 ? 2.2 + 6.8 * Math.abs(N) / maxN : 2.5; }
+
+    var g = [];
+    g.push('<defs><marker id="ah" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">' +
+      '<path d="M0,0 L8,3 L0,6 Z" fill="' + LOAD + '"/></marker></defs>');
+
+    // barres
+    res.forces.forEach(function (f) {
+      var A = byId[f.i], B = byId[f.j];
+      if (!A || !B) return;
+      var col = f.type === "tie" ? TIE : f.type === "strut" ? STRUT : NUL;
+      var dash = f.type === "strut" ? "" : "";
+      g.push('<line x1="' + X(A.x) + '" y1="' + Y(A.y) + '" x2="' + X(B.x) + '" y2="' + Y(B.y) +
+        '" stroke="' + col + '" stroke-width="' + wN(f.N).toFixed(2) + '" stroke-linecap="round"' + dash + '/>');
+      var mx = (X(A.x) + X(B.x)) / 2, my = (Y(A.y) + Y(B.y)) / 2;
+      var lbl = (f.N >= 0 ? "+" : "\u2212") + Math.abs(f.N).toFixed(1);
+      g.push('<rect x="' + (mx - 22) + '" y="' + (my - 9) + '" width="44" height="16" rx="4" fill="#fff" opacity="0.85"/>');
+      g.push('<text x="' + mx + '" y="' + (my + 3) + '" font-size="12" font-family="ui-monospace,monospace" ' +
+        'text-anchor="middle" fill="' + col + '">' + lbl + '</text>');
+    });
+
+    // appuis
+    (em.supports || []).forEach(function (sp) {
+      var n = byId[sp.node]; if (!n) return;
+      var x = X(n.x), y = Y(n.y);
+      g.push(supportGlyph(x, y, sp.dx, sp.dy));
+    });
+
+    // charges
+    (em.loads || []).forEach(function (ld) {
+      var n = byId[ld.node]; if (!n) return;
+      var fx = 0, fy = 0;
+      try { fx = ld.fx ? STM.evalExpr(ld.fx, em.variables) : 0; } catch (e) {}
+      try { fy = ld.fy ? STM.evalExpr(ld.fy, em.variables) : 0; } catch (e) {}
+      if (Math.abs(fx) < 1e-12 && Math.abs(fy) < 1e-12) return;
+      var mag = Math.hypot(fx, fy);
+      var ux = fx / mag, uy = fy / mag;           // monde
+      var sxdir = ux, sydir = -uy;                // ecran (y inverse)
+      var len = 50;
+      var hx = X(n.x), hy = Y(n.y);               // pointe a la charge
+      var tx = hx - sxdir * len, ty = hy - sydir * len;
+      g.push('<line x1="' + tx + '" y1="' + ty + '" x2="' + hx + '" y2="' + hy +
+        '" stroke="' + LOAD + '" stroke-width="2.4" marker-end="url(#ah)"/>');
+      var lty = Math.max(14, Math.min(VBH - 6, ty - 6)); // etiquette toujours visible
+      g.push('<text x="' + tx + '" y="' + lty + '" font-size="12" font-family="ui-monospace,monospace" ' +
+        'text-anchor="middle" fill="' + LOAD + '">' + mag.toFixed(0) + '</text>');
+    });
+
+    // noeuds + etiquettes
+    nodes.forEach(function (n) {
+      var x = X(n.x), y = Y(n.y);
+      g.push('<circle cx="' + x + '" cy="' + y + '" r="4.5" fill="#fff" stroke="' + NODE + '" stroke-width="2"/>');
+      g.push('<text x="' + (x + 9) + '" y="' + (y - 8) + '" font-size="13" font-weight="600" ' +
+        'font-family="system-ui,sans-serif" fill="' + NODE + '">' + n.id + '</text>');
+    });
+
+    svg.innerHTML = g.join("");
+  }
+
+  function supportGlyph(x, y, dx, dy) {
+    var s = 15, col = SUP, out = [];
+    if (dx && dy) { // appui fixe : triangle plein sous le noeud
+      out.push('<path d="M' + x + ',' + y + ' L' + (x - s) + ',' + (y + s * 1.5) +
+        ' L' + (x + s) + ',' + (y + s * 1.5) + ' Z" fill="none" stroke="' + col + '" stroke-width="2"/>');
+      out.push(hatch(x - s, y + s * 1.5, x + s, y + s * 1.5, col));
+    } else if (dy && !dx) { // glissant vertical : triangle + rouleaux
+      out.push('<path d="M' + x + ',' + y + ' L' + (x - s) + ',' + (y + s * 1.3) +
+        ' L' + (x + s) + ',' + (y + s * 1.3) + ' Z" fill="none" stroke="' + col + '" stroke-width="2"/>');
+      out.push('<circle cx="' + (x - s * 0.5) + '" cy="' + (y + s * 1.3 + 4) + '" r="3.5" fill="none" stroke="' + col + '" stroke-width="1.6"/>');
+      out.push('<circle cx="' + (x + s * 0.5) + '" cy="' + (y + s * 1.3 + 4) + '" r="3.5" fill="none" stroke="' + col + '" stroke-width="1.6"/>');
+      out.push(hatch(x - s, y + s * 1.3 + 8, x + s, y + s * 1.3 + 8, col));
+    } else if (dx && !dy) { // glissant horizontal : triangle couche a gauche
+      out.push('<path d="M' + x + ',' + y + ' L' + (x - s * 1.3) + ',' + (y - s) +
+        ' L' + (x - s * 1.3) + ',' + (y + s) + ' Z" fill="none" stroke="' + col + '" stroke-width="2"/>');
+      out.push('<circle cx="' + (x - s * 1.3 - 4) + '" cy="' + (y - s * 0.5) + '" r="3.5" fill="none" stroke="' + col + '" stroke-width="1.6"/>');
+      out.push('<circle cx="' + (x - s * 1.3 - 4) + '" cy="' + (y + s * 0.5) + '" r="3.5" fill="none" stroke="' + col + '" stroke-width="1.6"/>');
+    }
+    return out.join("");
+  }
+  function hatch(x1, y, x2, yy, col) {
+    var out = ['<line x1="' + x1 + '" y1="' + y + '" x2="' + x2 + '" y2="' + yy + '" stroke="' + col + '" stroke-width="2"/>'];
+    var n = 6;
+    for (var i = 0; i <= n; i++) {
+      var xx = x1 + (x2 - x1) * i / n;
+      out.push('<line x1="' + xx + '" y1="' + y + '" x2="' + (xx - 6) + '" y2="' + (y + 7) + '" stroke="' + col + '" stroke-width="1.2"/>');
+    }
+    return out.join("");
+  }
+
+  /* ---------------- amorçage ---------------- */
+  function boot() {
+    var sel = document.getElementById("preset");
+    Object.keys(PRESETS).forEach(function (k) {
+      sel.appendChild(el("option", { value: k }, [PRESETS[k].name]));
+    });
+    sel.value = "poutre";
+    sel.onchange = function () { loadPreset(sel.value); renderAll(); };
+    document.getElementById("add-var").onclick = addVar;
+    document.getElementById("add-node").onclick = addNode;
+    document.getElementById("add-mem").onclick = addMember;
+    document.getElementById("add-sup").onclick = addSupport;
+    document.getElementById("add-load").onclick = addLoad;
+    document.getElementById("recalc").onclick = recalc;
+    document.getElementById("opt-obj").onchange = function () { state.opt.objective = this.value; };
+    document.getElementById("opt-tmin").oninput = function () { state.opt.thetaMin = this.value; };
+    document.getElementById("opt-tmax").oninput = function () { state.opt.thetaMax = this.value; };
+    document.getElementById("add-free").onclick = addFree;
+    document.getElementById("run-opt").onclick = runOptimize;
+    wireGen();
+    loadPreset("poutre"); renderAll();
+
+    // PWA : enregistrement du service worker si l'environnement le permet
+    if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+      navigator.serviceWorker.register("service-worker.js").catch(function () {});
+    }
+    var deferred = null;
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault(); deferred = e;
+      var b = document.getElementById("install"); b.style.display = "inline-block";
+      b.onclick = function () { deferred.prompt(); deferred = null; b.style.display = "none"; };
+    });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+
+</script>
+</body>
+</html>
