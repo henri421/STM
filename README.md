@@ -8,15 +8,6 @@ Le calcul repose sur la methode des rigidites (treillis plan articule, effort ax
 
 Le depot est un site statique. `index.html` est autonome : il embarque le noyau de calcul, l'interface et le style. `manifest.webmanifest`, `service-worker.js` et le dossier `icons/` assurent l'installation et le fonctionnement hors ligne.
 
-## Deploiement sur GitHub Pages
-
-1. Creer un depot GitHub et y deposer le contenu de ce dossier a la racine.
-2. Dans Settings puis Pages, choisir la source Deploy from a branch, la branche `main` et le dossier `/root`.
-3. Ouvrir l'adresse fournie, du type `https://utilisateur.github.io/nom-du-depot/`. Les chemins sont relatifs, l'application fonctionne donc sous ce sous-repertoire.
-4. Sur mobile ou sur ordinateur, le navigateur proposera d'installer l'application ; un bouton Installer apparait aussi dans l'en-tete lorsque le navigateur le permet.
-
-Pour un essai local avant mise en ligne, servir le dossier par un serveur statique, par exemple `python3 -m http.server`, puis ouvrir `http://localhost:8000`. Ouvrir `index.html` par un double-clic suffit pour le calcul, mais le service worker ne s'enregistre que via `http` ou `https`.
-
 ## Utilisation
 
 Un menu Modele charge des configurations de depart : poutre-cloison a charge centree, console courte dissymetrique, semelle sur deux pieux, ou gabarit vide. Chaque donnee est editable dans le panneau de droite et le schema se recalcule immediatement.
@@ -52,11 +43,3 @@ Un cas non tenu confirme la detection de mecanisme, et un controle dedie verifie
 L'optimiseur a ete verifie de la meme maniere. Sur la console, bras de levier libre et angle non contraint, il retrouve l'optimum analytique a la borne superieure et la courbe de l'objectif coincide avec la loi T = F.a/z. Avec une bande d'angle limitee a 60 degres, il s'arrete exactement sur cette contrainte, a z = 0,516 m, tirant ramene de 200 a 174,4 kN, valeur conforme au calcul direct. Le solveur Nelder-Mead a ete valide sur une fonction a minimum connu, et sept controles de bout en bout confirment le report de l'optimum dans la geometrie et la signalisation de la contrainte active.
 
 Le generateur repose sur un simplexe deux phases, verifie sur des programmes lineaires a solution connue et sur la detection d'un systeme incompatible. Il restitue les deux modeles canoniques : sur la console, un tirant a +200 kN et une bielle a -360,55 kN ; sur la poutre-cloison, deux bielles a 45 degres a -70,71 kN et un tirant inferieur unique a +50 kN apres recollement des chaines. Chaque modele genere, re-resolu par la methode des rigidites, est stable et redonne les memes efforts, et dix controles de bout en bout confirment la generation depuis l'interface, y compris le refus d'une grille trop dense.
-
-## Feuille de route
-
-Cette version couvre les trois briques prevues : le solveur parametrique avec son editeur, l'optimiseur de geometrie a topologie fixee, et le generateur de topologie par structure de sol. Elle fournit les efforts, la geometrie optimisee et une proposition de modele corrigeable. Restent hors de son perimetre, et volontairement du ressort de l'ingenieur, la verification des contraintes de bielles et de noeuds et le dimensionnement des armatures selon l'EN 1992-1-1 (2004 section 6.5 ; 2023 section 8.5) et ses annexes nationales belge et luxembourgeoise.
-
-## Reserves
-
-Cet outil est une aide au calcul. Il fournit l'equilibre du treillis saisi, non une justification reglementaire. Le choix du modele, son admissibilite, la verification des bielles, tirants et noeuds selon l'Eurocode et ses annexes nationales, ainsi que la responsabilite de conception, restent celles de l'ingenieur du projet.
