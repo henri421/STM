@@ -105,6 +105,14 @@ td.del{width:30px; text-align:center}
 .legend{display:flex; gap:14px; padding:8px 14px; font-size:11.5px; color:var(--ink2); flex-wrap:wrap}
 .legend span{display:inline-flex; align-items:center; gap:6px}
 .legend i{width:16px;height:3px;border-radius:2px;display:inline-block}
+.tools{display:flex; flex-wrap:wrap; gap:7px; padding:10px 12px}
+.tools button{font-size:12px; padding:6px 10px; border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--ink); cursor:pointer}
+.tools button:hover{border-color:var(--ink3)}
+.tools button:disabled{opacity:.45; cursor:not-allowed}
+.tools select{font-size:12px; padding:6px 8px; border:1px solid var(--line); border-radius:7px; background:#fff}
+.instab{border:1px solid #f0d9b5; background:#fdf7ec; border-radius:8px; padding:9px 11px; margin-bottom:10px}
+.instab-h{font-weight:600; color:#b26a00; font-size:12.5px; margin-bottom:4px}
+.instab-m{font-size:12.5px; color:var(--ink); margin:5px 0; line-height:1.5}
 .optmini th{width:130px; color:var(--ink2); font-weight:500; font-size:12px; vertical-align:middle}
 .optmini td{padding:4px 4px}
 .optmini td.angle input{width:56px; display:inline-block; text-align:right; font-family:var(--mono)}
@@ -127,6 +135,8 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
   <div class="spacer"></div>
   <label class="pill" for="preset">Modele</label>
   <select id="preset" aria-label="Modele de depart"></select>
+  <button id="undo" class="btn ghost" title="Annuler la derniere action" disabled>Annuler</button>
+  <button id="redo" class="btn ghost" title="Retablir" disabled>Retablir</button>
   <button id="recalc" class="btn ghost" title="Recalculer et recadrer">Recalculer</button>
   <button id="install" class="btn primary">Installer</button>
 </header>
@@ -146,6 +156,22 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
 
   <div>
     <div class="card">
+      <h2>Sauvegarde et export</h2>
+      <div class="tools">
+        <button id="save-local">Enregistrer</button>
+        <select id="load-local" aria-label="Charger un modele"><option value="">Charger...</option></select>
+        <button id="del-local">Supprimer</button>
+        <button id="export-json">Modele .json</button>
+        <button id="import-json">Importer .json</button>
+        <button id="export-csv">Efforts .csv</button>
+        <button id="export-svg">Schema .svg</button>
+        <button id="export-png">Schema .png</button>
+        <input id="file-json" type="file" accept="application/json,.json" style="display:none">
+      </div>
+      <div id="io-result" class="pill" style="padding:0 12px 10px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
       <h2>Donnees du modele</h2>
       <section class="io">
         <div class="grp">
@@ -189,8 +215,22 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
           <tr><th>Domaine y</th><td class="angle">min <input id="gen-ymin" inputmode="decimal"> &middot; max <input id="gen-ymax" inputmode="decimal"></td></tr>
           <tr><th>Grille</th><td class="angle"><input id="gen-nx" inputmode="numeric"> &times; <input id="gen-ny" inputmode="numeric"> <span class="pill">noeuds</span></td></tr>
           <tr><th>Rapport &sigma;<sub>t</sub>/&sigma;<sub>c</sub></th><td class="angle"><input id="gen-sig" inputmode="decimal"></td></tr>
+          <tr><th>Appui lineaire</th><td class="angle">
+            <select id="gen-line">
+              <option value="">aucun</option>
+              <option value="bas">bas</option>
+              <option value="haut">haut</option>
+              <option value="gauche">gauche</option>
+              <option value="droite">droite</option>
+            </select>
+            <select id="gen-linemode">
+              <option value="v">vertical</option>
+              <option value="vh">vertical + horizontal</option>
+            </select>
+          </td></tr>
         </table>
         <div class="pill" style="margin-top:8px; line-height:1.5">Tirants limites aux directions horizontale, verticale et 45&deg;. Les appuis et charges du modele courant sont rabattus sur la grille.</div>
+        <div class="addrow" style="margin-top:6px"><button id="gen-fit">Ajuster le domaine au modele</button></div>
         <div style="margin-top:10px"><button id="run-gen" class="btn primary">Generer le modele</button></div>
       </div>
       <div id="gen-result" class="io" style="padding:6px 14px 12px"></div>
@@ -398,6 +438,39 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     return sol;
   }
 
+  /* Espace nul d'une matrice symetrique (modes de mecanisme d'un treillis).
+     Chaque vecteur non trivial du noyau est un mode de deplacement libre,
+     a effort nul, qui identifie precisement les degres de liberte instables. */
+  function nullSpace(A) {
+    var n = A.length; if (!n) return [];
+    var M = A.map(function (r) { return r.slice(); });
+    var scale = 0; for (var i = 0; i < n; i++) scale = Math.max(scale, Math.abs(M[i][i]));
+    var tol = Math.max(scale, 1) * 1e-9;
+    var where = new Array(n).fill(-1), row = 0;
+    for (var col = 0; col < n && row < n; col++) {
+      var piv = row, mx = Math.abs(M[row][col]);
+      for (var r = row + 1; r < n; r++) if (Math.abs(M[r][col]) > mx) { mx = Math.abs(M[r][col]); piv = r; }
+      if (mx < tol) continue;                       // colonne libre
+      var t = M[row]; M[row] = M[piv]; M[piv] = t;
+      var d = M[row][col];
+      for (var c = col; c < n; c++) M[row][c] /= d;
+      for (var r2 = 0; r2 < n; r2++) {
+        if (r2 === row) continue;
+        var f = M[r2][col]; if (Math.abs(f) < 1e-15) continue;
+        for (var c2 = col; c2 < n; c2++) M[r2][c2] -= f * M[row][c2];
+      }
+      where[col] = row; row++;
+    }
+    var vecs = [];
+    for (var fc = 0; fc < n; fc++) {
+      if (where[fc] !== -1) continue;               // colonne pivot
+      var x = new Array(n).fill(0); x[fc] = 1;
+      for (var pc = 0; pc < n; pc++) if (where[pc] !== -1) x[pc] = -M[where[pc]][fc];
+      vecs.push(x);
+    }
+    return vecs;
+  }
+
   /* -------------------------------------------------------------------
      3. Solveur de treillis plan.
         model = {
@@ -494,6 +567,24 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     var uf = nf > 0 ? solveLinear(Kff, Ff) : [];
     var singular = (uf === null);
 
+    // analyse d'instabilite : modes de mecanisme via le noyau de Kff
+    var mechanisms = [];
+    if (singular && nf > 0) {
+      var nv = nullSpace(Kff);
+      nv.forEach(function (vec) {
+        var mxv = 0; vec.forEach(function (v) { mxv = Math.max(mxv, Math.abs(v)); });
+        if (mxv < 1e-9) return;
+        var dofs = [];
+        vec.forEach(function (v, li) {
+          if (Math.abs(v) / mxv > 0.15) {
+            var gdof = freeIdx[li];
+            dofs.push({ node: nodes[Math.floor(gdof / 2)].id, dir: (gdof % 2 === 0) ? "x" : "y", w: v / mxv });
+          }
+        });
+        if (dofs.length) mechanisms.push(dofs);
+      });
+    }
+
     var u = new Array(ndof).fill(0);
     if (!singular) freeIdx.forEach(function (gi, li) { u[gi] = uf[li]; });
 
@@ -549,7 +640,8 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     return {
       nodes: nodes, forces: forces, reactions: reactions,
       determinacy: determinacy, hyperstaticDegree: count,
-      singular: singular, residual: residual,
+      singular: singular, residual: residual, mechanisms: mechanisms,
+      reactionCount: nReac, nNodes: nn, nMembers: b,
       warnings: warn, errors: err
     };
   }
@@ -818,26 +910,38 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     for (var iy = 0; iy < ny; iy++) gy.push(d.ymin + (d.ymax - d.ymin) * (ny === 1 ? 0 : iy / (ny - 1)));
     var pts = [];
     for (iy = 0; iy < ny; iy++) for (ix = 0; ix < nx; ix++) pts.push({ x: gx[ix], y: gy[iy] });
-    var np = pts.length;
     var diag = Math.hypot(d.xmax - d.xmin, d.ymax - d.ymin) || 1;
+    var tolE = 1e-6 * diag;
 
-    function nearest(x, y) {
-      var bi = 0, bd = Infinity;
-      for (var k = 0; k < np; k++) { var dd = Math.hypot(pts[k].x - x, pts[k].y - y); if (dd < bd) { bd = dd; bi = k; } }
-      return bi;
+    // les points d'appui et de charge sont injectes exactement (pas de rabattage)
+    function findOrAdd(x, y) {
+      for (var k = 0; k < pts.length; k++) if (Math.hypot(pts[k].x - x, pts[k].y - y) < tolE) return k;
+      pts.push({ x: x, y: y }); return pts.length - 1;
     }
-    // appuis et charges rabattus sur le noeud le plus proche
     var sup = {};   // index -> {dx,dy}
     (spec.supports || []).forEach(function (s) {
-      var k = nearest(s.x, s.y); sup[k] = sup[k] || { dx: false, dy: false };
+      var k = findOrAdd(s.x, s.y); sup[k] = sup[k] || { dx: false, dy: false };
       sup[k].dx = sup[k].dx || !!s.dx; sup[k].dy = sup[k].dy || !!s.dy;
     });
+    var loadList = (spec.loads || []).map(function (ld) {
+      return { k: findOrAdd(ld.x, ld.y), fx: ld.fx || 0, fy: ld.fy || 0 };
+    });
+
+    // appuis lineaires le long d'une arete : tout noeud sur l'arete est appuye
+    (spec.lineSupports || []).forEach(function (ls) {
+      for (var k = 0; k < pts.length; k++) {
+        var on = ls.edge === "bas" ? Math.abs(pts[k].y - d.ymin) < tolE
+          : ls.edge === "haut" ? Math.abs(pts[k].y - d.ymax) < tolE
+          : ls.edge === "gauche" ? Math.abs(pts[k].x - d.xmin) < tolE
+          : ls.edge === "droite" ? Math.abs(pts[k].x - d.xmax) < tolE : false;
+        if (on) { sup[k] = sup[k] || { dx: false, dy: false }; sup[k].dy = sup[k].dy || !!ls.dy; sup[k].dx = sup[k].dx || !!ls.dx; }
+      }
+    });
+
+    var np = pts.length;
     var loadVec = new Array(2 * np).fill(0);
     var loadedNodes = {};
-    (spec.loads || []).forEach(function (ld) {
-      var k = nearest(ld.x, ld.y); loadVec[2 * k] += ld.fx || 0; loadVec[2 * k + 1] += ld.fy || 0;
-      loadedNodes[k] = true;
-    });
+    loadList.forEach(function (l) { loadVec[2 * l.k] += l.fx; loadVec[2 * l.k + 1] += l.fy; loadedNodes[l.k] = true; });
 
     // barres candidates : paires non redondantes (pas de passage par un noeud intermediaire)
     function passesThrough(a, bb) {
@@ -905,8 +1009,15 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     bars.forEach(function (bar, bi) {
       if (Math.abs(Nbar[bi]) > keepTol * maxN) { keep.push({ bar: bi, N: Nbar[bi] }); used[bar.a] = true; used[bar.b] = true; }
     });
-    Object.keys(sup).forEach(function (k) { used[k] = true; });
+    // n'exiger dans le modele que les noeuds charges ; les appuis inutilises
+    // (typiquement le long d'un appui lineaire) sont elagues.
     Object.keys(loadedNodes).forEach(function (k) { used[k] = true; });
+    var supKept = {};
+    Object.keys(sup).map(Number).forEach(function (k) { if (used[k]) supKept[k] = { dx: sup[k].dx, dy: sup[k].dy }; });
+    // garantir un blocage horizontal pour lever le mode de corps rigide de la re-resolution
+    var supIdx = Object.keys(supKept).map(Number);
+    if (supIdx.length && !supIdx.some(function (k) { return supKept[k].dx; })) supKept[supIdx[0]].dx = true;
+    sup = supKept;
 
     // construction du modele de sortie (ids lisibles)
     var idOf = {}, outNodes = [];
@@ -919,8 +1030,8 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     });
     var outSup = Object.keys(sup).map(function (k) { return { node: idOf[k], dx: sup[k].dx, dy: sup[k].dy }; });
     var outLoads = [];
-    (spec.loads || []).forEach(function (ld) {
-      var k = nearest(ld.x, ld.y); outLoads.push({ node: idOf[k], fx: ld.fx, fy: ld.fy });
+    loadList.forEach(function (l) {
+      if (idOf[l.k] != null) outLoads.push({ node: idOf[l.k], fx: l.fx, fy: l.fy });
     });
 
     // nettoyage : fusion des chaines colineaires de meme nature a travers un
@@ -1020,6 +1131,15 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       supports: [["Pieu1", true, true], ["Pieu2", false, true]],
       loads: [["Pot", "0", "-N"]],
       opt: { objective: "tie_max", thetaMin: "30", thetaMax: "60", free: [["d", "0.4", "1.2"]] }
+    },
+    voile: {
+      name: "Voile, charge excentree",
+      variables: [["F", "100"], ["H", "3"], ["L", "3"], ["ex", "0.6"]],
+      nodes: [P("Ap1", "0", "0"), P("Ap2", "L", "0"), P("Ch", "ex", "H")],
+      members: [["Ap1", "Ap2", "tie"], ["Ap1", "Ch", "strut"], ["Ap2", "Ch", "strut"]],
+      supports: [["Ap1", true, true], ["Ap2", false, true]],
+      loads: [["Ch", "0", "-F"]],
+      opt: { objective: "tie_max", thetaMin: "30", thetaMax: "60", free: [] }
     }
   };
 
@@ -1067,7 +1187,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     state.gen = {
       xmin: String(round(bb.xmin, 4)), xmax: String(round(bb.xmax, 4)),
       ymin: String(round(bb.ymin, 4)), ymax: String(round(bb.ymax, 4)),
-      nx: "3", ny: "3", sigmaRatio: "1"
+      nx: "3", ny: "3", sigmaRatio: "1", line: "", lineMode: "v"
     };
   }
 
@@ -1123,7 +1243,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       var val = el("input", { value: v.value, placeholder: "valeur" });
       val.oninput = function () { v.value = val.value; recalc(); };
       var del = el("button", { class: "iconbtn", title: "supprimer" }, ["\u00d7"]);
-      del.onclick = function () { state.variables.splice(idx, 1); renderAll(); };
+      del.onclick = function () { snapshot(); state.variables.splice(idx, 1); renderAll(); };
       body.appendChild(el("tr", null, [
         el("td", null, [name]),
         el("td", { class: "num" }, [val]),
@@ -1143,6 +1263,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       y.oninput = function () { n.y = y.value; recalc(); };
       var del = el("button", { class: "iconbtn", title: "supprimer" }, ["\u00d7"]);
       del.onclick = function () {
+        snapshot();
         var key = n.key;
         state.nodes.splice(idx, 1);
         state.members = state.members.filter(function (m) { return m.i !== key && m.j !== key; });
@@ -1173,7 +1294,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       ]);
       ty.value = m.type; ty.onchange = function () { m.type = ty.value; recalc(); };
       var del = el("button", { class: "iconbtn", title: "supprimer" }, ["\u00d7"]);
-      del.onclick = function () { state.members.splice(idx, 1); renderAll(); };
+      del.onclick = function () { snapshot(); state.members.splice(idx, 1); renderAll(); };
       body.appendChild(el("tr", null, [
         el("td", null, [si]), el("td", null, [sj]),
         el("td", null, [ty]), el("td", { class: "del" }, [del])
@@ -1191,7 +1312,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       var cy = el("input", { type: "checkbox" }); cy.checked = !!s.dy;
       cy.onchange = function () { s.dy = cy.checked; recalc(); };
       var del = el("button", { class: "iconbtn", title: "supprimer" }, ["\u00d7"]);
-      del.onclick = function () { state.supports.splice(idx, 1); renderAll(); };
+      del.onclick = function () { snapshot(); state.supports.splice(idx, 1); renderAll(); };
       body.appendChild(el("tr", null, [
         el("td", null, [sn]),
         el("td", { class: "chk" }, [cx]),
@@ -1211,7 +1332,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       var fy = el("input", { value: l.fy });
       fy.oninput = function () { l.fy = fy.value; recalc(); };
       var del = el("button", { class: "iconbtn", title: "supprimer" }, ["\u00d7"]);
-      del.onclick = function () { state.loads.splice(idx, 1); renderAll(); };
+      del.onclick = function () { snapshot(); state.loads.splice(idx, 1); renderAll(); };
       body.appendChild(el("tr", null, [
         el("td", null, [ln]),
         el("td", { class: "num" }, [fx]),
@@ -1247,7 +1368,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       var mn = el("input", { value: f.min }); mn.oninput = function () { f.min = mn.value; };
       var mx = el("input", { value: f.max }); mx.oninput = function () { f.max = mx.value; };
       var del = el("button", { class: "iconbtn", title: "supprimer" }, ["\u00d7"]);
-      del.onclick = function () { state.opt.free.splice(idx, 1); renderFreeVars(); };
+      del.onclick = function () { snapshot(); state.opt.free.splice(idx, 1); renderFreeVars(); };
       body.appendChild(el("tr", null, [
         el("td", null, [sel]),
         el("td", { class: "num" }, [mn]),
@@ -1257,6 +1378,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     });
   }
   function addFree() {
+    snapshot();
     var names = varNames();
     if (!names.length) { document.getElementById("opt-result").innerHTML =
       '<div class="diag w">Declarez d\'abord une variable pour la rendre libre.</div>'; return; }
@@ -1282,6 +1404,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
 
     if (res.best) {
       // reporter l'optimum dans la geometrie
+      snapshot();
       Object.keys(res.best.vars).forEach(function (name) {
         var v = state.variables.find(function (x) { return x.name === name; });
         if (v) v.value = String(round(res.best.vars[name], 5));
@@ -1383,15 +1506,16 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     if (!state.gen) setGenDefaults();
     var g = state.gen;
     [["gen-xmin", "xmin"], ["gen-xmax", "xmax"], ["gen-ymin", "ymin"], ["gen-ymax", "ymax"],
-     ["gen-nx", "nx"], ["gen-ny", "ny"], ["gen-sig", "sigmaRatio"]].forEach(function (p) {
+     ["gen-nx", "nx"], ["gen-ny", "ny"], ["gen-sig", "sigmaRatio"], ["gen-line", "line"], ["gen-linemode", "lineMode"]].forEach(function (p) {
       var e = document.getElementById(p[0]); if (e) e.value = g[p[1]];
     });
   }
   function wireGen() {
     [["gen-xmin", "xmin"], ["gen-xmax", "xmax"], ["gen-ymin", "ymin"], ["gen-ymax", "ymax"],
-     ["gen-nx", "nx"], ["gen-ny", "ny"], ["gen-sig", "sigmaRatio"]].forEach(function (p) {
+     ["gen-nx", "nx"], ["gen-ny", "ny"], ["gen-sig", "sigmaRatio"], ["gen-line", "line"], ["gen-linemode", "lineMode"]].forEach(function (p) {
       var e = document.getElementById(p[0]);
-      e.oninput = function () { state.gen[p[1]] = e.value; };
+      var evt = e.tagName === "SELECT" ? "onchange" : "oninput";
+      e[evt] = function () { state.gen[p[1]] = e.value; };
     });
     document.getElementById("run-gen").onclick = generateModel;
   }
@@ -1415,20 +1539,40 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       try { fy = l.fy ? STM.evalExpr(l.fy, em.variables) : 0; } catch (e) {}
       return { x: coord[l.node].x, y: coord[l.node].y, fx: fx, fy: fy };
     });
-    if (!supports.length || !loads.length) { host.innerHTML = '<div class="diag w">Definissez au moins un appui et une charge dans le modele courant avant de generer.</div>'; return; }
+    if (!supports.length && !state.gen.line) { host.innerHTML = '<div class="diag w">Definissez au moins un appui (ponctuel ou lineaire) dans le modele courant avant de generer.</div>'; return; }
+    if (!loads.length) { host.innerHTML = '<div class="diag w">Definissez au moins une charge dans le modele courant avant de generer.</div>'; return; }
+
+    // auto-ajustement du domaine pour englober appuis et charges (evite un modele aberrant)
+    var pAll = supports.concat(loads), expanded = false;
+    pAll.forEach(function (p) {
+      if (p.x < dom.xmin) { dom.xmin = p.x; expanded = true; }
+      if (p.x > dom.xmax) { dom.xmax = p.x; expanded = true; }
+      if (p.y < dom.ymin) { dom.ymin = p.y; expanded = true; }
+      if (p.y > dom.ymax) { dom.ymax = p.y; expanded = true; }
+    });
+    if (expanded) {
+      state.gen.xmin = String(round(dom.xmin, 4)); state.gen.xmax = String(round(dom.xmax, 4));
+      state.gen.ymin = String(round(dom.ymin, 4)); state.gen.ymax = String(round(dom.ymax, 4));
+      renderGen();
+    }
+
+    var lineSupports = [];
+    if (state.gen.line) lineSupports.push({ edge: state.gen.line, dy: true, dx: state.gen.lineMode === "vh" });
 
     var g;
-    try { g = STM.generate({ domain: dom, nx: nx, ny: ny, sigmaRatio: numOf(state.gen.sigmaRatio), supports: supports, loads: loads, keepTol: 0.02 }); }
+    try { g = STM.generate({ domain: dom, nx: nx, ny: ny, sigmaRatio: numOf(state.gen.sigmaRatio), supports: supports, loads: loads, lineSupports: lineSupports, keepTol: 0.02 }); }
     catch (e) { host.innerHTML = '<div class="diag e">Generation impossible : ' + e.message + '</div>'; return; }
     if (!g.feasible) { host.innerHTML = '<div class="diag e">' + (g.warnings[0] || "Aucun treillis admissible trouve.") + '</div>'; return; }
 
+    snapshot();
     applyGenerated(g);
     renderAll();
     var msg = el("div", { class: "optline" }, [
       el("b", null, ["Modele genere. "]),
-      document.createTextNode(g.keptCount + " barres retenues sur " + g.barCount + " candidates. Corrigez-le dans les tableaux.")
+      document.createTextNode(g.keptCount + " barres retenues sur " + g.barCount + " candidates. Corrigez-le dans les tableaux, ou Annulez pour revenir.")
     ]);
     host.appendChild(msg);
+    if (expanded) host.appendChild(el("div", { class: "pill", style: "padding:4px 0" }, ["Domaine ajuste automatiquement pour inclure les appuis et charges."]));
     (g.warnings || []).forEach(function (w) { host.appendChild(el("div", { class: "diag w" }, [w])); });
   }
 
@@ -1454,23 +1598,27 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
   function renderAll() { renderVariables(); renderNodes(); renderMembers(); renderSupports(); renderLoads(); renderGen(); renderOpt(); recalc(); }
 
   /* ---------------- ajouts de lignes ---------------- */
-  function addVar() { state.variables.push({ name: "", value: "0" }); renderVariables(); }
+  function addVar() { snapshot(); state.variables.push({ name: "", value: "0" }); renderVariables(); }
   function addNode() {
+    snapshot();
     var id = "N" + (state.nodes.length + 1);
     state.nodes.push({ key: state.nextKey++, id: id, x: "0", y: "0" }); renderAll();
   }
   function addMember() {
     if (state.nodes.length < 2) return;
+    snapshot();
     state.members.push({ key: state.nextKey++, i: state.nodes[0].key, j: state.nodes[1].key, type: "auto" });
     renderMembers(); recalc();
   }
   function addSupport() {
     if (!state.nodes.length) return;
+    snapshot();
     state.supports.push({ key: state.nextKey++, node: state.nodes[0].key, dx: true, dy: true });
     renderSupports(); recalc();
   }
   function addLoad() {
     if (!state.nodes.length) return;
+    snapshot();
     state.loads.push({ key: state.nextKey++, node: state.nodes[0].key, fx: "0", fy: "0" });
     renderLoads(); recalc();
   }
@@ -1490,13 +1638,46 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     catch (e) { setStatus("err", "Calcul impossible : " + e.message); return; }
     lastRes = res; lastEM = em;
     draw(em, res); renderResults(res);
-    if (res.errors.length) setStatus("err", res.errors[0]);
+    if (res.singular) setStatus("err", "Instabilite : le modele n'est pas stable. Diagnostic detaille dans les resultats ci-dessous.");
     else if (res.warnings.length) setStatus("warn", res.warnings.length + " avertissement(s). Modele " + res.determinacy + ".");
     else setStatus("ok", "Modele " + res.determinacy + ". Equilibre verifie (residu " + res.residual.toExponential(1) + ").");
   }
 
   /* ---------------- resultats ---------------- */
   function fmtN(x) { return (x >= 0 ? "+" : "\u2212") + Math.abs(x).toFixed(2); }
+  function dirLabel(d) { return d === "x" ? "horizontale" : "verticale"; }
+  function interpretMode(mode, n) {
+    var nodes = {}; mode.forEach(function (d) { (nodes[d.node] = nodes[d.node] || []).push(d.dir); });
+    var ids = Object.keys(nodes);
+    var dirs = mode.map(function (d) { return d.dir; });
+    var allX = dirs.every(function (d) { return d === "x"; });
+    var allY = dirs.every(function (d) { return d === "y"; });
+    var sameSign = mode.every(function (d) { return d.w > 0; }) || mode.every(function (d) { return d.w < 0; });
+    if (ids.length === 1) {
+      var id = ids[0], dd = nodes[id];
+      var dl = dd.length > 1 ? "dans les deux directions" : "dans la direction " + dirLabel(dd[0]);
+      return "Mode " + n + ", local : le noeud " + id + " n'est pas assez tenu et peut se deplacer " + dl +
+        ". Ajoutez une barre non alignee reliant " + id + ", ou un appui bloquant cette direction.";
+    }
+    if (allX && sameSign) return "Mode " + n + ", d'ensemble : la structure peut glisser horizontalement, aucun appui ne bloque le deplacement selon x. Ajoutez un blocage horizontal (case x) a un appui.";
+    if (allY && sameSign) return "Mode " + n + ", d'ensemble : la structure peut glisser verticalement. Ajoutez un appui vertical (case y).";
+    return "Mode " + n + ", d'ensemble : la structure peut se deplacer ou pivoter en bloc (noeuds concernes : " + ids.join(", ") + "). Les appuis ne suffisent pas a l'immobiliser.";
+  }
+  function describeMechanisms(res) {
+    var box = el("div", { class: "instab" });
+    box.appendChild(el("div", { class: "instab-h" }, ["Diagnostic d'instabilite"]));
+    var dof = 2 * res.nNodes, deficit = dof - (res.nMembers + res.reactionCount);
+    var bilan = res.nMembers + " barres et " + res.reactionCount + " reactions pour " + dof + " degres de liberte";
+    box.appendChild(el("div", { class: "pill", style: "padding:2px 0 4px" }, [bilan + (deficit > 0 ? ", soit un deficit de " + deficit : "")]));
+    if (!res.mechanisms || !res.mechanisms.length) {
+      box.appendChild(el("div", { class: "instab-m" }, ["Le systeme est singulier. Verifiez les appuis et la triangulation : un noeud mal tenu ou des appuis insuffisants en sont la cause la plus frequente."]));
+    } else {
+      res.mechanisms.forEach(function (mode, i) { box.appendChild(el("div", { class: "instab-m" }, [interpretMode(mode, i + 1)])); });
+      box.appendChild(el("div", { class: "pill", style: "padding:4px 0 0" }, ["En 2D, la stabilite exige au moins trois composantes de reaction, non paralleles et non concourantes, et chaque noeud doit etre tenu par des barres non alignees ou par un appui. Les axes libres sont figures en orange sur le schema."]));
+    }
+    return box;
+  }
+
   function renderResults(res) {
     var host = document.getElementById("results");
     host.innerHTML = "";
@@ -1509,6 +1690,8 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       document.createTextNode("  "),
       el("span", { class: "pill" }, ["b+r\u22122j = " + res.hyperstaticDegree])
     ]));
+
+    if (res.singular) host.appendChild(describeMechanisms(res));
 
     // efforts
     var tb = el("tbody");
@@ -1580,7 +1763,9 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
 
     var g = [];
     g.push('<defs><marker id="ah" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">' +
-      '<path d="M0,0 L8,3 L0,6 Z" fill="' + LOAD + '"/></marker></defs>');
+      '<path d="M0,0 L8,3 L0,6 Z" fill="' + LOAD + '"/></marker>' +
+      '<marker id="ahm" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">' +
+      '<path d="M0,0 L7,3 L0,6 Z" fill="#b26a00"/></marker></defs>');
 
     // barres
     res.forces.forEach(function (f) {
@@ -1632,6 +1817,20 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
         'font-family="system-ui,sans-serif" fill="' + NODE + '">' + n.id + '</text>');
     });
 
+    // axes libres des mecanismes (instabilite) : double fleche orange
+    if (res.mechanisms && res.mechanisms.length) {
+      var seen = {};
+      res.mechanisms.forEach(function (mode) { mode.forEach(function (dof) { seen[dof.node + "|" + dof.dir] = true; }); });
+      Object.keys(seen).forEach(function (key) {
+        var parts = key.split("|"), nd = byId[parts[0]]; if (!nd) return;
+        var x = X(nd.x), y = Y(nd.y), len = 24, x1, y1, x2, y2;
+        if (parts[1] === "x") { x1 = x - len; y1 = y; x2 = x + len; y2 = y; }
+        else { x1 = x; y1 = y - len; x2 = x; y2 = y + len; }
+        g.push('<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
+          '" stroke="#b26a00" stroke-width="2" stroke-dasharray="4 3" marker-start="url(#ahm)" marker-end="url(#ahm)"/>');
+      });
+    }
+
     svg.innerHTML = g.join("");
   }
 
@@ -1666,19 +1865,162 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
   }
 
   /* ---------------- amorçage ---------------- */
+  /* ---------------- historique : annuler / retablir ---------------- */
+  var history = [], future = [];
+  function serialize() {
+    return { variables: state.variables, nodes: state.nodes, members: state.members,
+      supports: state.supports, loads: state.loads, opt: state.opt, gen: state.gen, nextKey: state.nextKey };
+  }
+  function loadSerialized(s) {
+    if (!s || !Array.isArray(s.nodes)) throw new Error("structure de modele invalide");
+    state.variables = s.variables || []; state.nodes = s.nodes || [];
+    state.members = s.members || []; state.supports = s.supports || []; state.loads = s.loads || [];
+    state.opt = s.opt || { objective: "tie_max", thetaMin: "30", thetaMax: "60", free: [] };
+    state.gen = s.gen || null; state.nextKey = s.nextKey || 1;
+    if (!state.gen) setGenDefaults();
+  }
+  function snapshot() {
+    var cur = JSON.stringify(serialize());
+    if (history.length && history[history.length - 1] === cur) { future = []; updateUndo(); return; }
+    history.push(cur); if (history.length > 60) history.shift(); future = []; updateUndo();
+  }
+  function undo() {
+    if (!history.length) return;
+    future.push(JSON.stringify(serialize()));
+    loadSerialized(JSON.parse(history.pop())); renderAll(); updateUndo();
+  }
+  function redo() {
+    if (!future.length) return;
+    history.push(JSON.stringify(serialize()));
+    loadSerialized(JSON.parse(future.pop())); renderAll(); updateUndo();
+  }
+  function updateUndo() {
+    var u = document.getElementById("undo"), r = document.getElementById("redo");
+    if (u) u.disabled = !history.length; if (r) r.disabled = !future.length;
+  }
+
+  /* ---------------- sauvegarde et export ---------------- */
+  var LSPREFIX = "stm:model:";
+  function lsOK() { try { localStorage.setItem("__stmt", "1"); localStorage.removeItem("__stmt"); return true; } catch (e) { return false; } }
+  function ioMsg(m) { var e = document.getElementById("io-result"); if (e) e.textContent = m || ""; }
+  function download(blob, name) {
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 200);
+  }
+  function refreshSlots() {
+    var sel = document.getElementById("load-local"); if (!sel) return;
+    sel.innerHTML = ""; sel.appendChild(el("option", { value: "" }, ["Charger..."]));
+    if (!lsOK()) return;
+    Object.keys(localStorage).filter(function (k) { return k.indexOf(LSPREFIX) === 0; })
+      .map(function (k) { return k.slice(LSPREFIX.length); }).sort()
+      .forEach(function (n) { sel.appendChild(el("option", { value: n }, [n])); });
+  }
+  function saveLocal() {
+    if (!lsOK()) { ioMsg("Sauvegarde locale indisponible ici. Utilisez Modele .json."); return; }
+    var name = prompt("Nom du modele a enregistrer ?"); if (!name) return;
+    try { localStorage.setItem(LSPREFIX + name, JSON.stringify(serialize())); refreshSlots();
+      document.getElementById("load-local").value = name; ioMsg("Enregistre localement : " + name); }
+    catch (e) { ioMsg("Echec de l'enregistrement : " + e.message); }
+  }
+  function loadLocal(name) {
+    if (!name) return;
+    try { var js = localStorage.getItem(LSPREFIX + name); if (!js) { ioMsg("Modele introuvable."); return; }
+      snapshot(); loadSerialized(JSON.parse(js)); renderAll(); ioMsg("Charge : " + name); }
+    catch (e) { ioMsg("Echec du chargement : " + e.message); }
+  }
+  function delLocal() {
+    var sel = document.getElementById("load-local"), name = sel.value;
+    if (!name) { ioMsg("Selectionnez d'abord un modele enregistre."); return; }
+    if (!confirm("Supprimer le modele enregistre \"" + name + "\" ?")) return;
+    try { localStorage.removeItem(LSPREFIX + name); refreshSlots(); ioMsg("Supprime : " + name); } catch (e) {}
+  }
+  function exportJSON() {
+    download(new Blob([JSON.stringify(serialize(), null, 2)], { type: "application/json" }), "modele-bielle-tirant.json");
+    ioMsg("Modele exporte en .json.");
+  }
+  function importJSON(file) {
+    var r = new FileReader();
+    r.onload = function () {
+      try { var s = JSON.parse(r.result); snapshot(); loadSerialized(s); renderAll(); ioMsg("Modele importe."); }
+      catch (e) { ioMsg("Fichier invalide : " + e.message); }
+    };
+    r.readAsText(file);
+  }
+  function exportCSV() {
+    if (!lastRes) { ioMsg("Rien a exporter : calculez d'abord."); return; }
+    var lines = ["Barre;Longueur;N (kN);Nature"];
+    lastRes.forces.forEach(function (f) {
+      var nat = f.type === "tie" ? "tirant" : f.type === "strut" ? "bielle" : "nul";
+      lines.push(f.i + " - " + f.j + ";" + f.L.toFixed(4) + ";" + f.N.toFixed(3) + ";" + nat);
+    });
+    lines.push(""); lines.push("Reaction;Composante;Valeur (kN)");
+    lastRes.reactions.forEach(function (rr) { lines.push(rr.node + ";" + rr.comp + ";" + rr.value.toFixed(3)); });
+    download(new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" }), "efforts-bielle-tirant.csv");
+    ioMsg("Efforts exportes en .csv.");
+  }
+  function svgString() {
+    var svg = document.getElementById("svg");
+    var vb = svg.getAttribute("viewBox") || "0 0 1000 680";
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb + '" width="1000" height="680">' +
+      '<rect x="0" y="0" width="1000" height="680" fill="#ffffff"/>' + svg.innerHTML + '</svg>';
+  }
+  function exportSVG() {
+    download(new Blob([svgString()], { type: "image/svg+xml" }), "schema-bielle-tirant.svg");
+    ioMsg("Schema exporte en .svg.");
+  }
+  function exportPNG() {
+    try {
+      var url = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgString())));
+      var img = new Image();
+      img.onload = function () {
+        var c = document.createElement("canvas"); c.width = 2000; c.height = 1360;
+        var ctx = c.getContext("2d"); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob(function (b) { if (b) { download(b, "schema-bielle-tirant.png"); ioMsg("Schema exporte en .png."); } else ioMsg("Export PNG indisponible ; utilisez .svg."); });
+      };
+      img.onerror = function () { ioMsg("Export PNG indisponible ici ; utilisez .svg."); };
+      img.src = url;
+    } catch (e) { ioMsg("Export PNG impossible : " + e.message); }
+  }
+  function fitDomain() {
+    var bb = computeBBox();
+    state.gen.xmin = String(round(bb.xmin, 4)); state.gen.xmax = String(round(bb.xmax, 4));
+    state.gen.ymin = String(round(bb.ymin, 4)); state.gen.ymax = String(round(bb.ymax, 4));
+    renderGen(); ioMsg("Domaine ajuste sur le modele courant.");
+  }
+
   function boot() {
     var sel = document.getElementById("preset");
     Object.keys(PRESETS).forEach(function (k) {
       sel.appendChild(el("option", { value: k }, [PRESETS[k].name]));
     });
     sel.value = "poutre";
-    sel.onchange = function () { loadPreset(sel.value); renderAll(); };
+    sel.onchange = function () { snapshot(); loadPreset(sel.value); renderAll(); };
     document.getElementById("add-var").onclick = addVar;
     document.getElementById("add-node").onclick = addNode;
     document.getElementById("add-mem").onclick = addMember;
     document.getElementById("add-sup").onclick = addSupport;
     document.getElementById("add-load").onclick = addLoad;
     document.getElementById("recalc").onclick = recalc;
+    document.getElementById("undo").onclick = undo;
+    document.getElementById("redo").onclick = redo;
+    document.getElementById("save-local").onclick = saveLocal;
+    document.getElementById("load-local").onchange = function () { loadLocal(this.value); };
+    document.getElementById("del-local").onclick = delLocal;
+    document.getElementById("export-json").onclick = exportJSON;
+    document.getElementById("import-json").onclick = function () { document.getElementById("file-json").click(); };
+    document.getElementById("file-json").onchange = function () { if (this.files[0]) importJSON(this.files[0]); this.value = ""; };
+    document.getElementById("export-csv").onclick = exportCSV;
+    document.getElementById("export-svg").onclick = exportSVG;
+    document.getElementById("export-png").onclick = exportPNG;
+    document.getElementById("gen-fit").onclick = fitDomain;
+    // capture de l'etat avant edition d'un champ, pour l'annulation
+    document.addEventListener("focusin", function (e) {
+      var t = e.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "SELECT") && t.closest && t.closest(".grp")) snapshot();
+    });
+    refreshSlots();
     document.getElementById("opt-obj").onchange = function () { state.opt.objective = this.value; };
     document.getElementById("opt-tmin").oninput = function () { state.opt.thetaMin = this.value; };
     document.getElementById("opt-tmax").oninput = function () { state.opt.thetaMax = this.value; };
