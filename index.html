@@ -3,46 +3,71 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#22303f">
+<meta name="theme-color" content="#1a1a1a">
 <title>Bielle-Tirant &middot; efforts dans un treillis plan</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
 :root{
-  --bg:#eef1f5; --panel:#ffffff; --line:#d3d9e2; --line2:#e6eaf0;
-  --ink:#161c28; --ink2:#5a6576; --ink3:#8a94a6;
-  --tie:#c42b2b;        /* traction : tirant, acier */
-  --strut:#2e5eaa;      /* compression : bielle, beton */
-  --nul:#9aa3b2;
-  --sup:#157a6e;        /* appuis et reactions */
-  --load:#161c28;
-  --accent:#22303f;
-  --ok:#157a6e; --warn:#b26a00; --err:#c42b2b;
-  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
-  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  /* ---- Châssis ---- */
+  --fond: #f7f7f6;            /* fond de page */
+  --surface: #ffffff;         /* cartes, panneaux, champs */
+  --surface-appui: #f2f1ec;   /* en-têtes de tableau, boutons au repos, blocs d'attente */
+  --texte: #1a1a1a;
+  --texte-doux: #4a4842;      /* notes, libellés de ligne, corps secondaire */
+  --texte-faible: #6a6862;    /* legend, sous-titres, surtitres */
+  --bordure: #c8c6c0;         /* filet structurant : cadres, champs, séparateurs */
+  --bordure-douce: #eceae4;   /* filet interne : lignes de liste, lignes de tableau */
+
+  /* ---- Interface ---- */
+  --accent: #1e5aa8;          /* focus, liens, état actif — JAMAIS une couleur de sens */
+  --accent-doux: #eaf1f9;     /* fond d'un champ actif, surlignage de zone */
+
+  /* ---- Couleurs de sens ---- */
+  --compression: #2f5d8a;     /* bielle, béton comprimé, domaine résistant */
+  --traction: #a8442a;        /* tirant, acier tendu, point sollicitant */
+  --beton: #e7eaee;           /* aplat de matière dans les tracés */
+  --neutre: #9a978f;          /* barre à effort nul, repères de cotation */
+
+  /* ---- Verdicts : trois états, pas quatre ---- */
+  --ok: #1f6f3f;      --ok-fond: #eaf4ee;
+  --alerte: #8a6d00;  --alerte-fond: #fdf6e3;
+  --refus: #a52121;   --refus-fond: #f8ecec;
+
+  /* ---- Typographie ---- */
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ---- Rayons ---- */
+  --rayon: 4px;        /* cartes, panneaux, fieldsets */
+  --rayon-petit: 3px;  /* champs, boutons, pastilles */
+
+  color-scheme: light;
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{
-  font-family:var(--sans); color:var(--ink); background:var(--bg);
-  font-size:14px; line-height:1.45; -webkit-text-size-adjust:100%;
+  font-family:var(--sans); color:var(--texte); background:var(--fond);
+  font-size:14px; line-height:1.5; -webkit-text-size-adjust:100%;
 }
+:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
 header{
   display:flex; align-items:center; gap:16px; flex-wrap:wrap;
-  padding:12px 18px; background:var(--panel); border-bottom:1px solid var(--line);
+  padding:12px 18px; background:var(--surface); border-bottom:1px solid var(--bordure);
   position:sticky; top:0; z-index:5;
 }
 .brand{display:flex; flex-direction:column; line-height:1.15}
 .brand b{font-size:16px; letter-spacing:.2px}
-.brand span{font-size:12px; color:var(--ink2)}
+.brand span{font-size:12px; color:var(--texte-doux)}
 header .spacer{flex:1}
 select,button,input{font-family:inherit; font-size:13px}
 select,.btn{
-  border:1px solid var(--line); background:#fff; color:var(--ink);
-  padding:7px 11px; border-radius:7px; cursor:pointer;
+  border:1px solid var(--bordure); background:var(--surface); color:var(--texte);
+  padding:7px 11px; border-radius:var(--rayon-petit); cursor:pointer;
 }
-.btn.primary{background:var(--accent); color:#fff; border-color:var(--accent)}
+.btn{background:var(--surface-appui)}
+.btn.primary{background:var(--texte); color:var(--surface); border-color:var(--texte)}
 .btn:active{transform:translateY(1px)}
 .btn.ghost{background:transparent}
 #install{display:none}
@@ -53,76 +78,76 @@ main{
 }
 @media(max-width:900px){ main{grid-template-columns:1fr} }
 
-.card{background:var(--panel); border:1px solid var(--line); border-radius:10px}
+.card{background:var(--surface); border:1px solid var(--bordure); border-radius:var(--rayon)}
 .card > h2{
-  font-size:12.5px; font-weight:600; color:var(--ink2);
-  margin:0; padding:10px 14px; border-bottom:1px solid var(--line2);
+  font-size:12.5px; font-weight:600; color:var(--texte-doux);
+  margin:0; padding:10px 14px; border-bottom:1px solid var(--bordure-douce);
   display:flex; align-items:center; gap:8px;
 }
 .drawwrap{padding:0; overflow:hidden}
 #svg{display:block; width:100%; height:auto; background:
   linear-gradient(0deg,rgba(0,0,0,.015) 1px,transparent 1px) 0 0/22px 22px,
-  linear-gradient(90deg,rgba(0,0,0,.015) 1px,transparent 1px) 0 0/22px 22px, #fff;}
+  linear-gradient(90deg,rgba(0,0,0,.015) 1px,transparent 1px) 0 0/22px 22px, var(--surface);}
 
-.status{padding:8px 14px; font-size:12.5px; border-bottom:1px solid var(--line2)}
-.status.ok{color:var(--ok)} .status.err{color:var(--err)} .status.warn{color:var(--warn)}
+.status{padding:8px 14px; font-size:12.5px; border-bottom:1px solid var(--bordure-douce)}
+.status.ok{color:var(--ok)} .status.err{color:var(--refus)} .status.warn{color:var(--alerte)}
 
 section.io{padding:6px 0 2px}
-.grp{padding:8px 12px 12px; border-bottom:1px solid var(--line2)}
+.grp{padding:8px 12px 12px; border-bottom:1px solid var(--bordure-douce)}
 .grp:last-child{border-bottom:0}
 .grp h3{
-  margin:2px 0 8px; font-size:11.5px; font-weight:600; color:var(--ink2);
+  margin:2px 0 8px; font-size:11.5px; font-weight:600; color:var(--texte-doux);
   display:flex; align-items:center; gap:8px;
 }
 .grp h3 .dot{width:9px;height:9px;border-radius:2px;display:inline-block}
-.dot.tie{background:var(--tie)} .dot.strut{background:var(--strut)} .dot.sup{background:var(--sup)}
+.dot.tie{background:var(--traction)} .dot.strut{background:var(--compression)} .dot.sup{background:var(--texte)}
 table{width:100%; border-collapse:collapse}
 th,td{padding:3px 4px; text-align:left; font-size:12.5px; vertical-align:middle}
-th{color:var(--ink3); font-weight:500; font-size:11px}
+th{color:var(--texte-faible); font-weight:500; font-size:11px}
 td input,td select{
-  width:100%; padding:5px 6px; border:1px solid var(--line); border-radius:6px;
-  background:#fbfcfe; color:var(--ink);
+  width:100%; padding:5px 6px; border:1px solid var(--bordure); border-radius:var(--rayon-petit);
+  background:var(--surface); color:var(--texte);
 }
-td.num input{font-family:var(--mono); text-align:right}
+td.num input{font-family:var(--mono); text-align:right; font-variant-numeric:tabular-nums}
 td.chk{text-align:center; width:44px}
 td.del{width:30px; text-align:center}
-.iconbtn{border:0; background:transparent; color:var(--ink3); cursor:pointer; font-size:15px; padding:2px 6px; border-radius:6px}
-.iconbtn:hover{color:var(--err); background:#faecec}
+.iconbtn{border:0; background:transparent; color:var(--texte-faible); cursor:pointer; font-size:15px; padding:2px 6px; border-radius:var(--rayon-petit)}
+.iconbtn:hover{color:var(--refus); background:var(--refus-fond)}
 .addrow{margin-top:6px}
-.addrow button{font-size:12px; padding:5px 9px; color:var(--strut); border-color:var(--line)}
+.addrow button{font-size:12px; padding:5px 9px; color:var(--accent); border-color:var(--bordure)}
 
-.results table td.n{font-family:var(--mono); text-align:right}
+.results table td.n{font-family:var(--mono); text-align:right; font-variant-numeric:tabular-nums}
 .tag{display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600}
-.tag.iso{background:#e7f3ef; color:var(--ok)}
-.tag.hyp{background:#fdf1e0; color:var(--warn)}
-.tag.mec{background:#fae6e6; color:var(--err)}
-.pill{font-family:var(--mono); font-size:11px; color:var(--ink2)}
-.nat-tie{color:var(--tie); font-weight:600}
-.nat-strut{color:var(--strut); font-weight:600}
-.nat-nul{color:var(--nul)}
+.tag.iso{background:var(--ok-fond); color:var(--ok)}
+.tag.hyp{background:var(--alerte-fond); color:var(--alerte)}
+.tag.mec{background:var(--refus-fond); color:var(--refus)}
+.pill{font-family:var(--sans); font-size:11px; color:var(--texte-doux)}
+.nat-tie{color:var(--traction)}
+.nat-strut{color:var(--compression)}
+.nat-nul{color:var(--neutre)}
 .diag{padding:8px 14px; font-size:12px}
-.diag .w{color:var(--warn)} .diag .e{color:var(--err)}
-.legend{display:flex; gap:14px; padding:8px 14px; font-size:11.5px; color:var(--ink2); flex-wrap:wrap}
+.diag .w{color:var(--alerte)} .diag .e{color:var(--refus)}
+.legend{display:flex; gap:14px; padding:8px 14px; font-size:11.5px; color:var(--texte-doux); flex-wrap:wrap}
 .legend span{display:inline-flex; align-items:center; gap:6px}
 .legend i{width:16px;height:3px;border-radius:2px;display:inline-block}
 .tools{display:flex; flex-wrap:wrap; gap:7px; padding:10px 12px}
-.tools button{font-size:12px; padding:6px 10px; border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--ink); cursor:pointer}
-.tools button:hover{border-color:var(--ink3)}
+.tools button{font-size:12px; padding:6px 10px; border:1px solid var(--bordure); border-radius:var(--rayon-petit); background:var(--surface-appui); color:var(--texte); cursor:pointer}
+.tools button:hover{border-color:var(--texte-faible)}
 .tools button:disabled{opacity:.45; cursor:not-allowed}
-.tools select{font-size:12px; padding:6px 8px; border:1px solid var(--line); border-radius:7px; background:#fff}
-.instab{border:1px solid #f0d9b5; background:#fdf7ec; border-radius:8px; padding:9px 11px; margin-bottom:10px}
-.instab-h{font-weight:600; color:#b26a00; font-size:12.5px; margin-bottom:4px}
-.instab-m{font-size:12.5px; color:var(--ink); margin:5px 0; line-height:1.5}
-.optmini th{width:130px; color:var(--ink2); font-weight:500; font-size:12px; vertical-align:middle}
+.tools select{font-size:12px; padding:6px 8px; border:1px solid var(--bordure); border-radius:var(--rayon-petit); background:var(--surface)}
+.instab{border-left:3px solid var(--alerte); background:var(--alerte-fond); border-radius:var(--rayon); padding:9px 11px; margin-bottom:10px}
+.instab-h{font-weight:600; color:var(--alerte); font-size:12.5px; margin-bottom:4px}
+.instab-m{font-size:12.5px; color:var(--texte); margin:5px 0; line-height:1.5}
+.optmini th{width:130px; color:var(--texte-doux); font-weight:500; font-size:12px; vertical-align:middle}
 .optmini td{padding:4px 4px}
-.optmini td.angle input{width:56px; display:inline-block; text-align:right; font-family:var(--mono)}
+.optmini td.angle input{width:56px; display:inline-block; text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums}
 .optmini select{width:100%}
 .optline{font-size:13px; padding:2px 0 4px}
-details.notice{margin:0 14px 16px; font-size:12.5px; color:var(--ink2)}
-details.notice summary{cursor:pointer; color:var(--ink); padding:8px 0; font-weight:600}
+details.notice{margin:0 14px 16px; font-size:12.5px; color:var(--texte-doux)}
+details.notice summary{cursor:pointer; color:var(--texte); padding:8px 0; font-weight:600}
 details.notice p{margin:6px 0}
-code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius:5px; font-size:12px}
-.foot{padding:6px 18px 22px; color:var(--ink3); font-size:11.5px}
+code{font-family:var(--mono); background:var(--surface-appui); padding:1px 5px; border-radius:var(--rayon-petit); font-size:12px}
+.foot{padding:6px 18px 22px; color:var(--texte-faible); font-size:11.5px}
 
 </style>
 </head>
@@ -146,10 +171,10 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     <div id="status" class="status">Chargement...</div>
     <svg id="svg" role="img" aria-label="Schema du treillis"></svg>
     <div class="legend">
-      <span><i style="background:#c42b2b"></i> tirant (traction)</span>
-      <span><i style="background:#2e5eaa"></i> bielle (compression)</span>
-      <span><i style="background:#157a6e"></i> appui</span>
-      <span><i style="background:#161c28"></i> charge</span>
+      <span><i style="background:var(--traction)"></i> tirant (traction)</span>
+      <span><i style="background:var(--compression)"></i> bielle (compression)</span>
+      <span><i style="background:var(--texte)"></i> appui</span>
+      <span><i style="background:var(--texte)"></i> charge</span>
       <span class="pill">epaisseur &prop; |N|</span>
     </div>
   </div>
@@ -1138,8 +1163,26 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
    et charges referencent la cle, ce qui protege des renommages. */
 (function () {
   "use strict";
-  var TIE = "#c42b2b", STRUT = "#2e5eaa", NUL = "#9aa3b2",
-      SUP = "#157a6e", LOAD = "#161c28", NODE = "#161c28";
+  /* Jetons de l'identite commune. Un SVG genere en JS ne voit pas les
+     variables CSS : on les lit une fois ici, avec la valeur du :root en
+     secours, pour que les exports .svg et .png restent autonomes. */
+  var RACINE = (typeof getComputedStyle === "function" && document.documentElement)
+    ? getComputedStyle(document.documentElement) : null;
+  function jeton(nom, secours) {
+    var v = RACINE ? RACINE.getPropertyValue(nom) : "";
+    v = v ? String(v).trim() : "";
+    return v || secours;
+  }
+  var COMPRESSION = jeton("--compression", "#2f5d8a"),
+      TRACTION    = jeton("--traction", "#a8442a"),
+      NEUTRE      = jeton("--neutre", "#9a978f"),
+      TEXTE       = jeton("--texte", "#1a1a1a"),
+      TEXTE_DOUX  = jeton("--texte-doux", "#4a4842"),
+      SURFACE     = jeton("--surface", "#ffffff"),
+      BORDURE     = jeton("--bordure", "#c8c6c0"),
+      OK          = jeton("--ok", "#1f6f3f"),
+      ALERTE      = jeton("--alerte", "#8a6d00"),
+      REFUS       = jeton("--refus", "#a52121");
 
   /* ---------------- presets ---------------- */
   function P(id, x, y) { return { id: id, x: x, y: y }; }
@@ -1519,31 +1562,31 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     for (var i = 0; i < res.curve.length - 1; i++) {
       if (!res.curve[i].feasible) {
         var x1 = PX(res.curve[i].x), x2 = PX(res.curve[i + 1].x);
-        g.push('<rect x="' + x1 + '" y="14" width="' + (x2 - x1 + 0.6) + '" height="' + (H - pad - 14) + '" fill="#c42b2b" opacity="0.08"/>');
+        g.push('<rect x="' + x1 + '" y="14" width="' + (x2 - x1 + 0.6) + '" height="' + (H - pad - 14) + '" fill="' + REFUS + '" opacity="0.08"/>');
       }
     }
     // axes
-    g.push('<line x1="' + pad + '" y1="14" x2="' + pad + '" y2="' + (H - pad) + '" stroke="#c8cfd9"/>');
-    g.push('<line x1="' + pad + '" y1="' + (H - pad) + '" x2="' + (W - 12) + '" y2="' + (H - pad) + '" stroke="#c8cfd9"/>');
-    // courbe (segments verts si faisable, gris sinon)
+    g.push('<line x1="' + pad + '" y1="14" x2="' + pad + '" y2="' + (H - pad) + '" stroke="' + BORDURE + '"/>');
+    g.push('<line x1="' + pad + '" y1="' + (H - pad) + '" x2="' + (W - 12) + '" y2="' + (H - pad) + '" stroke="' + BORDURE + '"/>');
+    // courbe (segments en encre si faisable, neutres sinon)
     for (var k = 0; k < res.curve.length - 1; k++) {
       var a = res.curve[k], b = res.curve[k + 1];
       if (a.obj == null || b.obj == null) continue;
-      var col = (a.feasible && b.feasible) ? "#22303f" : "#b9c0cc";
+      var col = (a.feasible && b.feasible) ? TEXTE : NEUTRE;
       g.push('<line x1="' + PX(a.x) + '" y1="' + PY(a.obj) + '" x2="' + PX(b.x) + '" y2="' + PY(b.obj) + '" stroke="' + col + '" stroke-width="2"/>');
     }
     // optimum
     if (res.best) {
       var xo = res.best.vars[name], yo = res.best.objective;
-      g.push('<line x1="' + PX(xo) + '" y1="14" x2="' + PX(xo) + '" y2="' + (H - pad) + '" stroke="#157a6e" stroke-dasharray="4 3" stroke-width="1.5"/>');
-      g.push('<circle cx="' + PX(xo) + '" cy="' + PY(yo) + '" r="4.5" fill="#157a6e"/>');
+      g.push('<line x1="' + PX(xo) + '" y1="14" x2="' + PX(xo) + '" y2="' + (H - pad) + '" stroke="' + OK + '" stroke-dasharray="4 3" stroke-width="1.5"/>');
+      g.push('<circle cx="' + PX(xo) + '" cy="' + PY(yo) + '" r="4.5" fill="' + OK + '"/>');
     }
     // etiquettes
-    g.push('<text x="' + pad + '" y="' + (H - pad + 16) + '" font-size="11" fill="#5a6576">' + round(xmin, 3) + '</text>');
-    g.push('<text x="' + (W - 12) + '" y="' + (H - pad + 16) + '" font-size="11" fill="#5a6576" text-anchor="end">' + round(xmax, 3) + '</text>');
-    g.push('<text x="' + ((pad + W) / 2) + '" y="' + (H - 6) + '" font-size="11" fill="#5a6576" text-anchor="middle">' + name + '</text>');
-    g.push('<text x="6" y="20" font-size="11" fill="#5a6576">' + OBJ_LABEL[res.objective] + ' (' + OBJ_UNIT[res.objective] + ')</text>');
-    g.push('<text x="6" y="' + (H - pad) + '" font-size="11" fill="#5a6576">0</text>');
+    g.push('<text x="' + pad + '" y="' + (H - pad + 16) + '" font-size="11" fill="' + TEXTE_DOUX + '">' + round(xmin, 3) + '</text>');
+    g.push('<text x="' + (W - 12) + '" y="' + (H - pad + 16) + '" font-size="11" fill="' + TEXTE_DOUX + '" text-anchor="end">' + round(xmax, 3) + '</text>');
+    g.push('<text x="' + ((pad + W) / 2) + '" y="' + (H - 6) + '" font-size="11" fill="' + TEXTE_DOUX + '" text-anchor="middle">' + name + '</text>');
+    g.push('<text x="6" y="20" font-size="11" fill="' + TEXTE_DOUX + '">' + OBJ_LABEL[res.objective] + ' (' + OBJ_UNIT[res.objective] + ')</text>');
+    g.push('<text x="6" y="' + (H - pad) + '" font-size="11" fill="' + TEXTE_DOUX + '">0</text>');
     g.push('</svg>');
     var wrap = el("div", { style: "margin-top:8px" });
     wrap.innerHTML = g.join("");
@@ -1723,7 +1766,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       box.appendChild(el("div", { class: "instab-m" }, ["Le systeme est singulier. Verifiez les appuis et la triangulation : un noeud mal tenu ou des appuis insuffisants en sont la cause la plus frequente."]));
     } else {
       res.mechanisms.forEach(function (mode, i) { box.appendChild(el("div", { class: "instab-m" }, [interpretMode(mode, i + 1)])); });
-      box.appendChild(el("div", { class: "pill", style: "padding:4px 0 0" }, ["En 2D, la stabilite exige au moins trois composantes de reaction, non paralleles et non concourantes, et chaque noeud doit etre tenu par des barres non alignees ou par un appui. Les axes libres sont figures en orange sur le schema."]));
+      box.appendChild(el("div", { class: "pill", style: "padding:4px 0 0" }, ["En 2D, la stabilite exige au moins trois composantes de reaction, non paralleles et non concourantes, et chaque noeud doit etre tenu par des barres non alignees ou par un appui. Les axes libres sont figures en couleur d'alerte sur le schema."]));
     }
     return box;
   }
@@ -2024,21 +2067,21 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
 
     var g = [];
     g.push('<defs><marker id="ah" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">' +
-      '<path d="M0,0 L8,3 L0,6 Z" fill="' + LOAD + '"/></marker>' +
+      '<path d="M0,0 L8,3 L0,6 Z" fill="' + TEXTE + '"/></marker>' +
       '<marker id="ahm" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">' +
-      '<path d="M0,0 L7,3 L0,6 Z" fill="#b26a00"/></marker></defs>');
+      '<path d="M0,0 L7,3 L0,6 Z" fill="' + ALERTE + '"/></marker></defs>');
 
     // barres
     res.forces.forEach(function (f) {
       var A = byId[f.i], B = byId[f.j];
       if (!A || !B) return;
-      var col = f.type === "tie" ? TIE : f.type === "strut" ? STRUT : NUL;
+      var col = f.type === "tie" ? TRACTION : f.type === "strut" ? COMPRESSION : NEUTRE;
       var dash = f.type === "strut" ? "" : "";
       g.push('<line x1="' + X(A.x) + '" y1="' + Y(A.y) + '" x2="' + X(B.x) + '" y2="' + Y(B.y) +
         '" stroke="' + col + '" stroke-width="' + wN(f.N).toFixed(2) + '" stroke-linecap="round"' + dash + '/>');
       var mx = (X(A.x) + X(B.x)) / 2, my = (Y(A.y) + Y(B.y)) / 2;
       var lbl = (f.N >= 0 ? "+" : "\u2212") + Math.abs(f.N).toFixed(1);
-      g.push('<rect x="' + (mx - 22) + '" y="' + (my - 9) + '" width="44" height="16" rx="4" fill="#fff" opacity="0.85"/>');
+      g.push('<rect x="' + (mx - 22) + '" y="' + (my - 9) + '" width="44" height="16" rx="4" fill="' + SURFACE + '" opacity="0.85"/>');
       g.push('<text x="' + mx + '" y="' + (my + 3) + '" font-size="12" font-family="ui-monospace,monospace" ' +
         'text-anchor="middle" fill="' + col + '">' + lbl + '</text>');
     });
@@ -2064,21 +2107,21 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       var hx = X(n.x), hy = Y(n.y);               // pointe a la charge
       var tx = hx - sxdir * len, ty = hy - sydir * len;
       g.push('<line x1="' + tx + '" y1="' + ty + '" x2="' + hx + '" y2="' + hy +
-        '" stroke="' + LOAD + '" stroke-width="2.4" marker-end="url(#ah)"/>');
+        '" stroke="' + TEXTE + '" stroke-width="2.4" marker-end="url(#ah)"/>');
       var lty = Math.max(14, Math.min(VBH - 6, ty - 6)); // etiquette toujours visible
       g.push('<text x="' + tx + '" y="' + lty + '" font-size="12" font-family="ui-monospace,monospace" ' +
-        'text-anchor="middle" fill="' + LOAD + '">' + mag.toFixed(0) + '</text>');
+        'text-anchor="middle" fill="' + TEXTE + '">' + mag.toFixed(0) + '</text>');
     });
 
     // noeuds + etiquettes
     nodes.forEach(function (n) {
       var x = X(n.x), y = Y(n.y);
-      g.push('<circle cx="' + x + '" cy="' + y + '" r="4.5" fill="#fff" stroke="' + NODE + '" stroke-width="2"/>');
+      g.push('<circle cx="' + x + '" cy="' + y + '" r="4.5" fill="' + SURFACE + '" stroke="' + TEXTE + '" stroke-width="2"/>');
       g.push('<text x="' + (x + 9) + '" y="' + (y - 8) + '" font-size="13" font-weight="600" ' +
-        'font-family="system-ui,sans-serif" fill="' + NODE + '">' + n.id + '</text>');
+        'font-family="system-ui,sans-serif" fill="' + TEXTE + '">' + n.id + '</text>');
     });
 
-    // axes libres des mecanismes (instabilite) : double fleche orange
+    // axes libres des mecanismes (instabilite) : double fleche en couleur d'alerte
     if (res.mechanisms && res.mechanisms.length) {
       var seen = {};
       res.mechanisms.forEach(function (mode) { mode.forEach(function (dof) { seen[dof.node + "|" + dof.dir] = true; }); });
@@ -2088,7 +2131,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
         if (parts[1] === "x") { x1 = x - len; y1 = y; x2 = x + len; y2 = y; }
         else { x1 = x; y1 = y - len; x2 = x; y2 = y + len; }
         g.push('<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
-          '" stroke="#b26a00" stroke-width="2" stroke-dasharray="4 3" marker-start="url(#ahm)" marker-end="url(#ahm)"/>');
+          '" stroke="' + ALERTE + '" stroke-width="2" stroke-dasharray="4 3" marker-start="url(#ahm)" marker-end="url(#ahm)"/>');
       });
     }
 
@@ -2096,7 +2139,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
   }
 
   function supportGlyph(x, y, dx, dy) {
-    var s = 15, col = SUP, out = [];
+    var s = 15, col = TEXTE, out = [];
     if (dx && dy) { // appui fixe : triangle plein sous le noeud
       out.push('<path d="M' + x + ',' + y + ' L' + (x - s) + ',' + (y + s * 1.5) +
         ' L' + (x + s) + ',' + (y + s * 1.5) + ' Z" fill="none" stroke="' + col + '" stroke-width="2"/>');
@@ -2226,7 +2269,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     var svg = document.getElementById("svg");
     var vb = svg.getAttribute("viewBox") || "0 0 1000 680";
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb + '" width="1000" height="680">' +
-      '<rect x="0" y="0" width="1000" height="680" fill="#ffffff"/>' + svg.innerHTML + '</svg>';
+      '<rect x="0" y="0" width="1000" height="680" fill="' + SURFACE + '"/>' + svg.innerHTML + '</svg>';
   }
   function exportSVG() {
     download(new Blob([svgString()], { type: "image/svg+xml" }), "schema-bielle-tirant.svg");
@@ -2238,7 +2281,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       var img = new Image();
       img.onload = function () {
         var c = document.createElement("canvas"); c.width = 2000; c.height = 1360;
-        var ctx = c.getContext("2d"); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
+        var ctx = c.getContext("2d"); ctx.fillStyle = SURFACE; ctx.fillRect(0, 0, c.width, c.height);
         ctx.drawImage(img, 0, 0, c.width, c.height);
         c.toBlob(function (b) { if (b) { download(b, "schema-bielle-tirant.png"); ioMsg("Schema exporte en .png."); } else ioMsg("Export PNG indisponible ; utilisez .svg."); });
       };
