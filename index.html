@@ -135,6 +135,11 @@ td.del{width:30px; text-align:center}
 .legend{display:flex; gap:14px; padding:8px 14px; font-size:11.5px; color:var(--texte-doux); flex-wrap:wrap}
 .legend span{display:inline-flex; align-items:center; gap:6px}
 .legend i{width:16px;height:3px;border-radius:2px;display:inline-block}
+/* Appui et charge sont tous deux en encre depuis que l'appui a cesse d'etre
+   une couleur de sens : la legende les distingue donc par la FORME, celle
+   du schema — triangle pour l'appui, barre pour la charge. Deux pastilles
+   identiques ne distinguent rien. */
+.legend i.appui{width:0;height:0;border-radius:0;background:none;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:9px solid var(--texte);vertical-align:-1px}
 .tools{display:flex; flex-wrap:wrap; gap:7px; padding:10px 12px}
 .tools button{font-size:12px; padding:6px 10px; border:1px solid var(--bordure); border-radius:var(--rayon-petit); background:var(--surface-appui); color:var(--texte); cursor:pointer}
 .tools button:hover{border-color:var(--texte-faible)}
@@ -192,7 +197,7 @@ code{font-family:var(--mono); background:var(--surface-appui); padding:1px 5px; 
     <div class="legend">
       <span><i style="background:var(--traction)"></i> tirant (traction)</span>
       <span><i style="background:var(--compression)"></i> bielle (compression)</span>
-      <span><i style="background:var(--texte)"></i> appui</span>
+      <span><i class="appui"></i> appui</span>
       <span><i style="background:var(--texte)"></i> charge</span>
       <span class="pill">epaisseur &prop; |N|</span>
     </div>
