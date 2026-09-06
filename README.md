@@ -51,3 +51,11 @@ Le generateur repose sur un simplexe deux phases, verifie sur des programmes lin
 La verification des noeuds a ete recoupee a la main sur la poutre-cloison. En C30/37 avec gamma_c = 1,5 et alpha_cc = 1,0 : nu' = 1 - 30/250 = 0,880, fcd = 20,00 MPa, nu'.fcd = 17,60 MPa, d'ou 17,60 MPa pour un noeud CCC, 14,96 MPa pour un CCT et 13,20 MPa pour un CTT. Le noeud d'appui recoit un tirant a +50,00 kN et une bielle a -70,71 kN : il est classe CCT et sa force determinante vaut 70,71 kN. Le facteur mille a ete controle sur ce cas, une surface de 1000 mm2 donnant exactement 70,71 MPa, puis 17,68 MPa sous 4000 mm2, soit un taux de 1,18 et un depassement, et 7,07 MPa sous 10 000 mm2, soit un taux de 0,47. En C50/60 la resistance CCT passe a 22,67 MPa, valeur egalement recalculee a la main. Le noeud haut, ou n'aboutit aucun tirant, est classe CCC ; en inversant le sens de la charge, deux tirants y aboutissent et il devient CTT, ce qui confirme le classement automatique.
 
 La force retenue pour chaque noeud est la plus grande de celles qui y aboutissent : effort de barre, reaction d'appui ou charge appliquee. Omettre les deux dernieres sous-estimerait le noeud d'appui et le noeud charge, qui sont pourtant les cas les plus courants. Le controle reste d'ordre de grandeur : une seule surface par noeud, la plus grande force, et non un examen face par face.
+
+## Note de calcul
+
+Un bouton « Note de calcul » produit un document HTML autonome, ouvert dans un onglet et imprimable en PDF par le navigateur, avec repli sur un telechargement si l'ouverture est bloquee. Il porte les donnees d'entree (variables, noeuds, barres, appuis, charges), le schema du treillis, les efforts et les reactions, puis la verification des noeuds avec ses valeurs intermediaires : nu', f_cd, les trois coefficients de classe, et pour chaque noeud sa classe, sa force determinante, sa surface, sigma_Ed et sigma_Rd,max.
+
+Les valeurs intermediaires ne sont pas un ornement : un sigma_Rd,max sans son nu' et son f_cd n'est pas verifiable par un tiers, et c'est a cela qu'une note sert. Le document est autonome — aucune ressource externe — et l'application continue de fonctionner hors ligne.
+
+C'est un compte rendu, pas une justification reglementaire signee.

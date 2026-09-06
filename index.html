@@ -214,6 +214,7 @@ code{font-family:var(--mono); background:var(--surface-appui); padding:1px 5px; 
         <button id="import-json">Importer .json</button>
         <button id="export-csv">Efforts .csv</button>
         <button id="export-svg">Schema .svg</button>
+        <button id="export-note">Note de calcul</button>
         <button id="export-png">Schema .png</button>
         <input id="file-json" type="file" accept="application/json,.json" style="display:none">
       </div>
@@ -2299,6 +2300,173 @@ code{font-family:var(--mono); background:var(--surface-appui); padding:1px 5px; 
     download(new Blob([svgString()], { type: "image/svg+xml" }), "schema-bielle-tirant.svg");
     ioMsg("Schema exporte en .svg.");
   }
+  /*
+   * NOTE DE CALCUL : un document HTML AUTONOME, ouvert dans un onglet et
+   * imprimable en PDF par le navigateur.
+   *
+   * Elle porte les valeurs INTERMEDIAIRES et pas seulement les resultats : un
+   * sigma_Rd,max sans son nu', son f_cd et le coefficient de classe retenu
+   * n'est pas verifiable par un tiers, et c'est a cela qu'une note sert.
+   *
+   * Elle ne conclut pas a la place de l'ingenieur et ne masque rien : ce qui
+   * n'a pas ete calcule y figure avec son motif.
+   *
+   * Aucune dependance, aucune ressource externe : l'application doit continuer
+   * de fonctionner hors ligne.
+   */
+  function escNote(t) {
+    return String(t == null ? "" : t)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function noteTable(entetes, lignes) {
+    if (!lignes.length) return "";
+    var h = entetes.map(function (e) { return "<th>" + escNote(e) + "</th>"; }).join("");
+    var c = lignes.map(function (r) {
+      return "<tr>" + r.map(function (v, i) {
+        return '<td class="' + (i === 0 ? "lib" : "val") + '">' + escNote(v) + "</td>";
+      }).join("") + "</tr>";
+    }).join("");
+    return "<table><thead><tr>" + h + "</tr></thead><tbody>" + c + "</tbody></table>";
+  }
+
+  /* Les jetons de l'identite graphique, embarques : un document autonome ne
+     voit pas la feuille de la page, et s'ouvrirait sans couleur. */
+  function noteStyles() {
+    var cs = getComputedStyle(document.documentElement);
+    var j = function (n, d) { return (cs.getPropertyValue(n) || "").trim() || d; };
+    return ":root{--surface:" + j("--surface", "#ffffff") +
+      ";--surface-appui:" + j("--surface-appui", "#f2f1ec") +
+      ";--texte:" + j("--texte", "#1a1a1a") +
+      ";--texte-doux:" + j("--texte-doux", "#4a4842") +
+      ";--texte-faible:" + j("--texte-faible", "#6a6862") +
+      ";--bordure:" + j("--bordure", "#c8c6c0") +
+      ";--bordure-douce:" + j("--bordure-douce", "#eceae4") +
+      ";--compression:" + j("--compression", "#2f5d8a") +
+      ";--traction:" + j("--traction", "#a8442a") +
+      ";--ok:" + j("--ok", "#1f6f3f") +
+      ";--refus:" + j("--refus", "#a52121") +
+      ";--alerte:" + j("--alerte", "#8a6d00") +
+      ";--alerte-fond:" + j("--alerte-fond", "#fdf6e3") +
+      ";--sans:" + j("--sans", "system-ui, sans-serif") +
+      ";--mono:" + j("--mono", "ui-monospace, monospace") + "}" +
+      "body{margin:0;padding:24px 28px;background:var(--surface);color:var(--texte);font:14px/1.5 var(--sans)}" +
+      "h1{font-size:1.1rem;font-weight:normal;letter-spacing:.02em;margin:0 0 .2rem}" +
+      "h2{font-size:.95rem;font-weight:600;margin:1.6rem 0 .5rem;border-bottom:1px solid var(--bordure);padding-bottom:.25rem;page-break-after:avoid}" +
+      ".date{color:var(--texte-faible);font-size:.8rem;margin:0 0 1.2rem}" +
+      "table{border-collapse:collapse;width:100%;margin:.3rem 0 .8rem}" +
+      "th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--texte-faible);font-weight:normal;padding:.25rem .4rem;background:var(--surface-appui);border-bottom:1px solid var(--bordure)}" +
+      "td{border-bottom:1px solid var(--bordure-douce);padding:.25rem .4rem}" +
+      "td.lib{color:var(--texte-doux)}" +
+      "td.val{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}" +
+      ".dessin{margin:.6rem 0 1rem;page-break-inside:avoid}.dessin svg{max-width:100%;height:auto}" +
+      ".note{color:var(--texte-doux);font-size:.8rem;margin:.2rem 0 .8rem}" +
+      ".avert{border-left:3px solid var(--alerte);background:var(--alerte-fond);color:var(--alerte);padding:.5rem .7rem;margin:.5rem 0;font-size:.82rem}" +
+      "ul{margin:.3rem 0 .8rem;padding-left:1.1rem;color:var(--texte-doux);font-size:.82rem}" +
+      ".pied{margin-top:2rem;padding-top:.6rem;border-top:1px solid var(--bordure);color:var(--texte-doux);font-size:.78rem}" +
+      "@media print{body{background:#fff;padding:0}}";
+  }
+
+  function noteHtml() {
+    var res = lastRes;
+    var d = new Date().toISOString().slice(0, 10);
+
+    /* Barres, appuis et charges referencent les noeuds par leur CLE interne,
+       pas par leur identifiant : la note doit montrer les identifiants. */
+    var idDeCle = {};
+    state.nodes.forEach(function (n) { idDeCle[n.key] = n.id; });
+    var nom = function (cle) { return idDeCle[cle] || "?"; };
+
+    var entrees = noteTable(["Variable", "Valeur"],
+      state.variables.map(function (v) { return [v.name, v.value]; }));
+    entrees += noteTable(["Noeud", "x", "y"], state.nodes.map(function (n) { return [n.id, n.x, n.y]; }));
+    entrees += noteTable(["Barre", "Type"], state.members.map(function (m) {
+      return [nom(m.i) + " - " + nom(m.j), m.type === "tie" ? "tirant" : m.type === "strut" ? "bielle" : "auto"];
+    }));
+    entrees += noteTable(["Appui", "Blocage"], state.supports.map(function (a) {
+      return [nom(a.node), (a.dx ? "x" : "") + (a.dx && a.dy ? " et " : "") + (a.dy ? "y" : "") || "aucun"];
+    }));
+    entrees += noteTable(["Charge", "Fx", "Fy"], state.loads.map(function (l) {
+      return [nom(l.node), l.fx, l.fy];
+    }));
+
+    var efforts = noteTable(["Barre", "Longueur", "N (kN)", "Nature"], res.forces.map(function (f) {
+      return [f.i + " - " + f.j, f.L.toFixed(4), f.N.toFixed(3),
+              f.type === "tie" ? "tirant (traction)" : f.type === "strut" ? "bielle (compression)" : "nul"];
+    }));
+    var reactions = noteTable(["Noeud", "Composante", "Valeur (kN)"],
+      res.reactions.map(function (r) { return [r.node, r.comp, r.value.toFixed(3)]; }));
+
+    /* Verification des noeuds : les valeurs intermediaires d'abord. */
+    var mat = ncMaterial(), nc = ncState();
+    var noeuds = "", derivees = "";
+    if (mat.ok) {
+      derivees = "<p class=\"note\">nu' = 1 - fck/250 = " + mat.nu.toFixed(3) +
+        " · f_cd = alpha_cc·fck/gamma_c = " + mat.fcd.toFixed(2) + " MPa · nu'·f_cd = " +
+        (mat.nu * mat.fcd).toFixed(2) + " MPa · k1 = " + nc.k1 + " · k2 = " + nc.k2 + " · k3 = " + nc.k3 + "</p>";
+      noeuds = noteTable(["Noeud", "Classe", "Tirants", "max |N| (kN)", "A (mm2)", "sigma_Ed (MPa)", "sigma_Rd,max (MPa)", "Verdict"],
+        ncNodeRows(res).map(function (row) {
+          var key = ncKeyOfId(row.id), forced = nc.classes[key];
+          var cls = (forced === "CCC" || forced === "CCT" || forced === "CTT") ? forced : ncAutoClass(row.ties);
+          var k = ncCoef(cls), rd = k * mat.nu * mat.fcd, A = numOf(nc.areas[key]);
+          var ed = (isFinite(A) && A > 0) ? 1000 * row.nabs / A : NaN;
+          return [row.id, cls, String(row.ties), row.nmax.toFixed(2),
+                  isFinite(A) && A > 0 ? A.toFixed(0) : "surface a saisir",
+                  isFinite(ed) ? ed.toFixed(2) : "\u2013",
+                  rd.toFixed(2),
+                  isFinite(ed) ? (ed <= rd ? "verifie (" + (ed / rd).toFixed(2) + ")" : "depasse (" + (ed / rd).toFixed(2) + ")") : "\u2013"];
+        }));
+    } else {
+      noeuds = "<p class=\"note\">Materiaux incomplets : la verification des noeuds n'a pas ete calculee.</p>";
+    }
+
+    return "<!doctype html><html lang=\"fr\"><head><meta charset=\"utf-8\">" +
+      "<title>Note de calcul — modele bielle-tirant</title><style>" + noteStyles() + "</style></head><body>" +
+      "<h1>Note de calcul — modele bielle-tirant (EN 1992-1-1:2004 §6.5)</h1>" +
+      "<p class=\"date\">" + escNote(d) + " · modele " + escNote(res.determinacy) + "</p>" +
+      "<h2>Donnees d entree</h2>" + entrees +
+      "<h2>Schema du treillis</h2><div class=\"dessin\">" + svgString() + "</div>" +
+      "<h2>Efforts</h2>" + efforts +
+      "<h2>Reactions</h2>" + reactions +
+      "<h2>Verification des noeuds (§6.5.4)</h2>" + derivees + noeuds +
+      "<p class=\"avert\">Le controle des noeuds est d ordre de grandeur : une seule surface par " +
+      "noeud, confrontee a la plus grande force qui y aboutit (barre, reaction d appui ou charge). " +
+      "Il ne remplace pas l examen face par face.</p>" +
+      "<h2>Hypotheses et reserves</h2><ul>" +
+      "<li>Treillis plan articule : chaque barre ne reprend qu un effort axial. Effort positif en traction.</li>" +
+      "<li>Pour un modele isostatique les efforts sont independants des rigidites ; aucune section n est demandee.</li>" +
+      "<li>Unites coherentes libres ; l affichage suppose des forces en kN et des longueurs en m.</li>" +
+      "<li>Valeurs recommandees de l EN 1992-1-1 ; une annexe nationale peut les modifier.</li>" +
+      "<li>Verification des bielles, des tirants et de leurs ancrages non couverte.</li>" +
+      "</ul>" +
+      "<p class=\"pied\">Outil d aide au calcul. L equilibre fourni est celui du treillis saisi ; " +
+      "le choix du modele, son admissibilite et la responsabilite de conception restent celles de " +
+      "l ingenieur du projet. Cette note est un compte rendu, pas une justification reglementaire signee.</p>" +
+      "</body></html>";
+  }
+
+  function exportNote() {
+    if (!lastRes) { ioMsg("Rien a exporter : calculez d'abord."); return; }
+    if (lastRes.singular) { ioMsg("Modele instable : la note ne serait pas exploitable."); return; }
+
+    var html = noteHtml();
+    /* L'ouverture d'onglet est bloquee par defaut chez beaucoup d'utilisateurs.
+       Un bouton qui ne fait rien SANS RIEN DIRE est pire qu'un telechargement
+       inattendu : on retombe alors sur le fichier. */
+    var onglet = null;
+    try { onglet = window.open("", "_blank"); } catch (e) { onglet = null; }
+    if (!onglet) {
+      download(new Blob([html], { type: "text/html;charset=utf-8" }), "note-bielle-tirant.html");
+      ioMsg("Ouverture d onglet bloquee : la note a ete telechargee.");
+      return;
+    }
+    try { onglet.document.write(html); onglet.document.close(); ioMsg("Note ouverte dans un onglet ; imprimez-la en PDF."); }
+    catch (e) {
+      download(new Blob([html], { type: "text/html;charset=utf-8" }), "note-bielle-tirant.html");
+      ioMsg("Note telechargee.");
+    }
+  }
+
   function exportPNG() {
     try {
       var url = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgString())));
@@ -2343,6 +2511,7 @@ code{font-family:var(--mono); background:var(--surface-appui); padding:1px 5px; 
     document.getElementById("file-json").onchange = function () { if (this.files[0]) importJSON(this.files[0]); this.value = ""; };
     document.getElementById("export-csv").onclick = exportCSV;
     document.getElementById("export-svg").onclick = exportSVG;
+    document.getElementById("export-note").onclick = exportNote;
     document.getElementById("export-png").onclick = exportPNG;
     document.getElementById("gen-fit").onclick = fitDomain;
     // capture de l'etat avant edition d'un champ, pour l'annulation
