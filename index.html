@@ -52,6 +52,11 @@ body{
   font-size:14px; line-height:1.5; -webkit-text-size-adjust:100%;
 }
 :focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.barre{background:var(--surface); border-bottom:1px solid var(--bordure)}
+.barre-corps{display:flex; align-items:baseline; justify-content:space-between; gap:1rem; padding:6px 18px}
+.barre-nom{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--texte-faible)}
+.barre-lien{color:var(--accent); font-size:.8rem; text-decoration:none}
+.barre-lien:hover{text-decoration:underline}
 header{
   display:flex; align-items:center; gap:16px; flex-wrap:wrap;
   padding:12px 18px; background:var(--surface); border-bottom:1px solid var(--bordure);
@@ -149,9 +154,23 @@ details.notice p{margin:6px 0}
 code{font-family:var(--mono); background:var(--surface-appui); padding:1px 5px; border-radius:var(--rayon-petit); font-size:12px}
 .foot{padding:6px 18px 22px; color:var(--texte-faible); font-size:11.5px}
 
+@media print{
+  .barre{display:none}
+  header{position:static}
+  header select,header .btn,header .pill{display:none}
+  body{background:var(--surface)}
+}
+
 </style>
 </head>
 <body>
+<nav class="barre" aria-label="suite d'outils">
+  <div class="barre-corps">
+    <span class="barre-nom">EC2 &middot; Beton arme</span>
+    <a class="barre-lien" href="https://henri421.github.io/WebAedificium/" target="_blank" rel="noopener">Outils EC2 &#8599;</a>
+  </div>
+</nav>
+
 <header>
   <div class="brand">
     <b>Bielle-Tirant</b>
