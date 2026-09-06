@@ -271,6 +271,41 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
         <p>Aide au calcul. L'equilibre fourni est celui du treillis saisi ; l'admissibilite du modele bielle-tirant, la verification des bielles, tirants et noeuds selon EN 1992-1-1 (2004 &sect;6.5 ; 2023 &sect;8.5) et la responsabilite de conception restent celles de l'ingenieur.</p>
       </details>
     </div>
+
+    <div class="card" style="margin-top:14px">
+      <h2>Verification des noeuds <span class="pill">EN 1992-1-1:2004 &sect;6.5.4</span></h2>
+      <div class="grp">
+        <h3>Materiaux</h3>
+        <table class="optmini">
+          <tr><th>Classe de beton</th><td class="angle">
+            <select id="nc-class" aria-label="Classe de resistance du beton"></select>
+          </td></tr>
+          <tr><th>f<sub>ck</sub></th><td class="angle"><input id="nc-fck" inputmode="decimal" aria-label="fck"> <span class="pill">MPa</span></td></tr>
+          <tr><th>&gamma;<sub>c</sub></th><td class="angle"><input id="nc-gc" inputmode="decimal" aria-label="gamma c"> <span class="pill">1,5 recommande</span></td></tr>
+          <tr><th>&alpha;<sub>cc</sub></th><td class="angle"><input id="nc-acc" inputmode="decimal" aria-label="alpha cc"> <span class="pill">1,0 recommande</span></td></tr>
+        </table>
+        <div id="nc-derived" class="optline" style="padding-top:8px"></div>
+      </div>
+      <div class="grp">
+        <h3>Coefficients de noeud <span class="pill">&sigma;<sub>Rd,max</sub> = k &middot; &nu;&prime; &middot; f<sub>cd</sub></span></h3>
+        <table class="optmini">
+          <tr><th>k<sub>1</sub> &middot; CCC</th><td class="angle"><input id="nc-k1" inputmode="decimal" aria-label="k1"> <span class="pill">noeud sans tirant ancre</span></td></tr>
+          <tr><th>k<sub>2</sub> &middot; CCT</th><td class="angle"><input id="nc-k2" inputmode="decimal" aria-label="k2"> <span class="pill">un tirant ancre</span></td></tr>
+          <tr><th>k<sub>3</sub> &middot; CTT</th><td class="angle"><input id="nc-k3" inputmode="decimal" aria-label="k3"> <span class="pill">tirants ancres dans plusieurs directions</span></td></tr>
+        </table>
+      </div>
+      <div class="grp">
+        <h3>Noeuds <span class="pill">surface d'appui en mm&sup2;</span></h3>
+        <div id="nc-table"></div>
+        <div class="pill" style="margin-top:10px; line-height:1.55">
+          Controle d'ordre de grandeur, volontairement simplifie. Une verification rigoureuse examine
+          <b>chaque face du noeud</b> avec sa propre surface et sa propre resultante, y compris la face
+          chargee par la plaque d'appui ou la reaction. Ce tableau confronte la <b>plus grande</b> force
+          des barres aboutissant au noeud a <b>une seule</b> surface saisie : il ne remplace pas cet examen.
+        </div>
+      </div>
+    </div>
+
     <div class="foot">Donnees traitees localement dans le navigateur. Aucun envoi reseau.</div>
   </div>
 </main>
@@ -1149,7 +1184,12 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
   function loadPreset(pkey) {
     var p = PRESETS[pkey];
     var k = 0, keyOf = {};
+    // les materiaux et coefficients de noeud survivent au changement de modele,
+    // les surfaces et classes forcees non : elles designent des noeuds disparus.
+    var nc = state && state.nodecheck ? state.nodecheck : ncDefaults();
     state = { nextKey: 0, variables: [], nodes: [], members: [], supports: [], loads: [] };
+    state.nodecheck = { fck: nc.fck, gammaC: nc.gammaC, alphaCc: nc.alphaCc,
+      k1: nc.k1, k2: nc.k2, k3: nc.k3, areas: {}, classes: {} };
     p.variables.forEach(function (v) { state.variables.push({ name: v[0], value: v[1] }); });
     p.nodes.forEach(function (nd) {
       var key = state.nextKey++; keyOf[nd.id] = key;
@@ -1593,9 +1633,10 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       state.loads.push({ key: state.nextKey++, node: keyOf[l.node], fx: String(round(l.fx, 5)), fy: String(round(l.fy, 5)) });
     });
     state.opt.free = [];   // les variables parametriques ne pilotent plus la geometrie generee
+    ncState().areas = {}; ncState().classes = {};  // les noeuds saisis n'existent plus
   }
 
-  function renderAll() { renderVariables(); renderNodes(); renderMembers(); renderSupports(); renderLoads(); renderGen(); renderOpt(); recalc(); }
+  function renderAll() { renderVariables(); renderNodes(); renderMembers(); renderSupports(); renderLoads(); renderGen(); renderOpt(); renderNodeCheckInputs(); recalc(); }
 
   /* ---------------- ajouts de lignes ---------------- */
   function addVar() { snapshot(); state.variables.push({ name: "", value: "0" }); renderVariables(); }
@@ -1629,7 +1670,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     s.className = "status " + cls; s.textContent = msg;
   }
   function recalc() {
-    if (!state.nodes.length) { clearDraw(); setStatus("", "Ajoutez des noeuds pour commencer."); renderResults(null); return; }
+    if (!state.nodes.length) { clearDraw(); setStatus("", "Ajoutez des noeuds pour commencer."); renderResults(null); renderNodeCheck(null); return; }
     var em;
     try { em = buildEngineModel(); }
     catch (e) { setStatus("err", "Entree invalide : " + e.message); return; }
@@ -1637,7 +1678,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     try { res = STM.solveTruss(em); }
     catch (e) { setStatus("err", "Calcul impossible : " + e.message); return; }
     lastRes = res; lastEM = em;
-    draw(em, res); renderResults(res);
+    draw(em, res); renderResults(res); renderNodeCheck(res);
     if (res.singular) setStatus("err", "Instabilite : le modele n'est pas stable. Diagnostic detaille dans les resultats ci-dessous.");
     else if (res.warnings.length) setStatus("warn", res.warnings.length + " avertissement(s). Modele " + res.determinacy + ".");
     else setStatus("ok", "Modele " + res.determinacy + ". Equilibre verifie (residu " + res.residual.toExponential(1) + ").");
@@ -1738,6 +1779,183 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
       res.warnings.forEach(function (m) { d.appendChild(el("div", { class: "w" }, ["\u26a0 " + m])); });
       host.appendChild(d);
     }
+  }
+
+  /* ---------------- verification des noeuds (EN 1992-1-1:2004 6.5.4) ----------------
+     Classement par le nombre de tirants aboutissant au noeud : 0 -> CCC, 1 -> CCT,
+     2 ou plus -> CTT, avec possibilite de forcer la classe. Contrainte resistante
+     sigma_Rd,max = k . nu' . f_cd, avec nu' = 1 - f_ck/250 et f_cd = alpha_cc.f_ck/gamma_c.
+     Contrainte sollicitante sigma_Ed = 1000.|N|/A : N en kN, A en mm2, resultat en MPa. */
+  var NC_CLASSES = [["20", "C20/25"], ["25", "C25/30"], ["30", "C30/37"], ["35", "C35/45"],
+                    ["40", "C40/50"], ["45", "C45/55"], ["50", "C50/60"]];
+  var NC_KEYS = [["nc-fck", "fck"], ["nc-gc", "gammaC"], ["nc-acc", "alphaCc"],
+                 ["nc-k1", "k1"], ["nc-k2", "k2"], ["nc-k3", "k3"]];
+
+  function ncDefaults() {
+    return { fck: "30", gammaC: "1.5", alphaCc: "1.00",
+             k1: "1.00", k2: "0.85", k3: "0.75", areas: {}, classes: {} };
+  }
+  function ncState() {
+    if (!state.nodecheck) state.nodecheck = ncDefaults();
+    var nc = state.nodecheck;
+    if (!nc.areas) nc.areas = {};
+    if (!nc.classes) nc.classes = {};
+    return nc;
+  }
+
+  /* materiaux : nu' et f_cd, ou ok = false si une donnee manque */
+  function ncMaterial() {
+    var nc = ncState();
+    var fck = numOf(nc.fck), gc = numOf(nc.gammaC), acc = numOf(nc.alphaCc);
+    var ok = isFinite(fck) && fck > 0 && isFinite(gc) && gc > 0 && isFinite(acc) && acc > 0;
+    return { ok: ok, fck: fck,
+             nu: ok ? 1 - fck / 250 : NaN,
+             fcd: ok ? acc * fck / gc : NaN };
+  }
+
+  /* une ligne par noeud : nombre de tirants et plus grande force incidente, signee */
+  function ncNodeRows(res) {
+    var byId = {};
+    res.nodes.forEach(function (n) { byId[n.id] = { id: n.id, ties: 0, nabs: 0, nmax: 0, bars: 0 }; });
+    res.forces.forEach(function (f) {
+      [f.i, f.j].forEach(function (id) {
+        var r = byId[id]; if (!r) return;
+        r.bars++;
+        if (f.type === "tie") r.ties++;
+        if (Math.abs(f.N) > r.nabs) { r.nabs = Math.abs(f.N); r.nmax = f.N; }
+      });
+    });
+    return res.nodes.map(function (n) { return byId[n.id]; });
+  }
+
+  function ncKeyOfId(id) {
+    for (var i = 0; i < state.nodes.length; i++)
+      if (state.nodes[i].id === id) return String(state.nodes[i].key);
+    return "id:" + id;
+  }
+  function ncAutoClass(ties) { return ties === 0 ? "CCC" : (ties === 1 ? "CCT" : "CTT"); }
+  function ncCoef(cls) {
+    var nc = ncState();
+    return numOf(cls === "CCC" ? nc.k1 : cls === "CCT" ? nc.k2 : nc.k3);
+  }
+
+  function renderNcDerived(mat) {
+    var host = document.getElementById("nc-derived"); if (!host) return;
+    if (!mat.ok) {
+      host.innerHTML = '<span class="diag e" style="padding:0">Materiaux incomplets :' +
+        ' f<sub>ck</sub>, &gamma;<sub>c</sub> et &alpha;<sub>cc</sub> doivent etre des nombres positifs.</span>';
+      return;
+    }
+    host.innerHTML =
+      '&nu;&prime; = 1 &minus; f<sub>ck</sub>/250 = <b>' + mat.nu.toFixed(3) + '</b>' +
+      ' &nbsp;&middot;&nbsp; f<sub>cd</sub> = &alpha;<sub>cc</sub>&middot;f<sub>ck</sub>/&gamma;<sub>c</sub> = <b>' +
+      mat.fcd.toFixed(2) + ' MPa</b>' +
+      ' &nbsp;&middot;&nbsp; &nu;&prime;&middot;f<sub>cd</sub> = <b>' + (mat.nu * mat.fcd).toFixed(2) + ' MPa</b>';
+  }
+
+  /* remplissage des cellules calculees d'une ligne, sans reconstruire le tableau */
+  function ncFillRow(row, key, auto, tdSig, tdRd, tdVerdict) {
+    var nc = ncState(), mat = ncMaterial();
+    var forced = nc.classes[key];
+    var cls = (forced === "CCC" || forced === "CCT" || forced === "CTT") ? forced : auto;
+    var k = ncCoef(cls);
+    var rd = (mat.ok && isFinite(k) && k > 0) ? k * mat.nu * mat.fcd : NaN;
+    var A = numOf(nc.areas[key]);
+    var ed = (isFinite(A) && A > 0) ? 1000 * row.nabs / A : NaN;
+    tdRd.textContent = isFinite(rd) ? rd.toFixed(2) : "\u2013";
+    tdSig.textContent = isFinite(ed) ? ed.toFixed(2) : "\u2013";
+    tdVerdict.innerHTML = "";
+    if (!isFinite(rd)) {
+      tdVerdict.appendChild(el("span", { class: "pill" }, ["materiaux a completer"]));
+      return;
+    }
+    if (!isFinite(ed)) {
+      tdVerdict.appendChild(el("span", { class: "pill" }, ["surface a saisir"]));
+      return;
+    }
+    var ratio = ed / rd;
+    tdVerdict.appendChild(el("span", { class: "tag " + (ratio <= 1 ? "iso" : "mec") },
+      [ratio <= 1 ? "verifie" : "depasse"]));
+    tdVerdict.appendChild(el("span", { class: "pill" }, ["  " + ratio.toFixed(2)]));
+  }
+
+  function renderNodeCheck(res) {
+    var host = document.getElementById("nc-table"); if (!host) return;
+    host.innerHTML = "";
+    renderNcDerived(ncMaterial());
+    if (!res) { host.appendChild(el("div", { class: "pill" }, ["Aucun resultat : completez le modele."])); return; }
+    if (res.singular) {
+      host.appendChild(el("div", { class: "diag e" },
+        ["Modele instable : les efforts ne sont pas exploitables, la verification des noeuds est suspendue."]));
+      return;
+    }
+    var nc = ncState();
+    var tb = el("tbody");
+    ncNodeRows(res).forEach(function (row) {
+      var key = ncKeyOfId(row.id), auto = ncAutoClass(row.ties);
+      var sel = el("select", null, [
+        el("option", { value: "auto" }, ["auto : " + auto]),
+        el("option", { value: "CCC" }, ["CCC"]),
+        el("option", { value: "CCT" }, ["CCT"]),
+        el("option", { value: "CTT" }, ["CTT"])
+      ]);
+      sel.value = nc.classes[key] || "auto";
+      var area = el("input", { value: nc.areas[key] || "", placeholder: "mm\u00b2" });
+      var tdSig = el("td", { class: "n" }), tdRd = el("td", { class: "n" }), tdVerdict = el("td");
+      function refresh() { ncFillRow(row, key, auto, tdSig, tdRd, tdVerdict); }
+      sel.onchange = function () { nc.classes[key] = sel.value; refresh(); };
+      area.oninput = function () { nc.areas[key] = area.value; refresh(); };
+      refresh();
+      var natCls = row.nmax > 1e-9 ? "nat-tie" : (row.nmax < -1e-9 ? "nat-strut" : "nat-nul");
+      tb.appendChild(el("tr", null, [
+        el("td", null, [row.id]),
+        el("td", null, [sel]),
+        el("td", { class: "n" }, [String(row.ties)]),
+        el("td", { class: "n " + natCls }, [fmtN(row.nmax)]),
+        el("td", { class: "num" }, [area]),
+        tdSig, tdRd, tdVerdict
+      ]));
+    });
+    host.appendChild(el("table", { class: "results" }, [
+      el("thead", null, [el("tr", null, [
+        el("th", null, ["Noeud"]), el("th", null, ["Classe"]), el("th", null, ["Tirants"]),
+        el("th", { html: "max |N| (kN)" }), el("th", { html: "A (mm&sup2;)" }),
+        el("th", { html: "&sigma;<sub>Ed</sub> (MPa)" }), el("th", { html: "&sigma;<sub>Rd,max</sub> (MPa)" }),
+        el("th", null, ["Verdict"])
+      ])]), tb
+    ]));
+  }
+
+  function ncSyncClassSelect() {
+    var sel = document.getElementById("nc-class"); if (!sel) return;
+    var fck = String(ncState().fck).trim();
+    var match = "";
+    NC_CLASSES.forEach(function (c) { if (numOf(c[0]) === numOf(fck)) match = c[0]; });
+    sel.value = match;
+  }
+  function renderNodeCheckInputs() {
+    var nc = ncState();
+    NC_KEYS.forEach(function (p) { var e = document.getElementById(p[0]); if (e) e.value = nc[p[1]]; });
+    ncSyncClassSelect();
+  }
+  function wireNodeCheck() {
+    var sel = document.getElementById("nc-class");
+    NC_CLASSES.forEach(function (c) { sel.appendChild(el("option", { value: c[0] }, [c[1]])); });
+    sel.appendChild(el("option", { value: "" }, ["saisie libre"]));
+    sel.onchange = function () {
+      if (sel.value === "") return;
+      ncState().fck = sel.value;
+      document.getElementById("nc-fck").value = sel.value;
+      renderNodeCheck(lastRes);
+    };
+    NC_KEYS.forEach(function (p) {
+      var e = document.getElementById(p[0]);
+      e.oninput = function () {
+        ncState()[p[1]] = e.value;
+        if (p[1] === "fck") ncSyncClassSelect();
+        renderNodeCheck(lastRes);
+      };
+    });
   }
 
   /* ---------------- trace SVG ---------------- */
@@ -1869,7 +2087,8 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
   var history = [], future = [];
   function serialize() {
     return { variables: state.variables, nodes: state.nodes, members: state.members,
-      supports: state.supports, loads: state.loads, opt: state.opt, gen: state.gen, nextKey: state.nextKey };
+      supports: state.supports, loads: state.loads, opt: state.opt, gen: state.gen,
+      nodecheck: state.nodecheck, nextKey: state.nextKey };
   }
   function loadSerialized(s) {
     if (!s || !Array.isArray(s.nodes)) throw new Error("structure de modele invalide");
@@ -1877,6 +2096,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     state.members = s.members || []; state.supports = s.supports || []; state.loads = s.loads || [];
     state.opt = s.opt || { objective: "tie_max", thetaMin: "30", thetaMax: "60", free: [] };
     state.gen = s.gen || null; state.nextKey = s.nextKey || 1;
+    state.nodecheck = s.nodecheck || ncDefaults();
     if (!state.gen) setGenDefaults();
   }
   function snapshot() {
@@ -2027,6 +2247,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
     document.getElementById("add-free").onclick = addFree;
     document.getElementById("run-opt").onclick = runOptimize;
     wireGen();
+    wireNodeCheck();
     loadPreset("poutre"); renderAll();
 
     // PWA : enregistrement du service worker si l'environnement le permet
