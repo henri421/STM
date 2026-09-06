@@ -568,11 +568,18 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
 
     // ---- vecteur de charges
     var F = new Array(ndof).fill(0);
+    // Les charges resolues sont conservees : elles pressent la face chargee
+    // d'un noeud, et la verification du paragraphe 6.5.4 en a besoin. Les
+    // reevaluer ailleurs ferait deux lectures d'une meme expression.
+    var loadsResolved = [];
     (model.loads || []).forEach(function (ld) {
       var idx = idIndex[ld.node];
       if (idx === undefined) throw new Error("Charge sur noeud inconnu : " + ld.node);
-      if (ld.fx) F[2 * idx]     += evalExpr(ld.fx, vars);
-      if (ld.fy) F[2 * idx + 1] += evalExpr(ld.fy, vars);
+      var fx = ld.fx ? evalExpr(ld.fx, vars) : 0;
+      var fy = ld.fy ? evalExpr(ld.fy, vars) : 0;
+      F[2 * idx]     += fx;
+      F[2 * idx + 1] += fy;
+      if (fx || fy) loadsResolved.push({ node: ld.node, fx: fx, fy: fy });
     });
 
     // ---- conditions d'appui
@@ -675,6 +682,7 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
 
     return {
       nodes: nodes, forces: forces, reactions: reactions,
+      loads: loadsResolved,
       determinacy: determinacy, hyperstaticDegree: count,
       singular: singular, residual: residual, mechanisms: mechanisms,
       reactionCount: nReac, nNodes: nn, nMembers: b,
@@ -1815,17 +1823,51 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
   }
 
   /* une ligne par noeud : nombre de tirants et plus grande force incidente, signee */
+  /*
+   * Forces aboutissant a chaque noeud.
+   *
+   * Les barres ne sont PAS les seules a charger un noeud : une reaction
+   * d'appui presse la face d'appui, et une charge appliquee presse la face
+   * chargee. Sur un noeud d'appui de bielle-tirant -- le cas CCT le plus
+   * courant du paragraphe 6.5.4 -- c'est justement la reaction qui gouverne.
+   * Ne retenir que les barres sous-estimerait donc le cas le plus frequent.
+   *
+   * La resultante d'appui est prise en norme, sur ses deux composantes.
+   */
   function ncNodeRows(res) {
     var byId = {};
-    res.nodes.forEach(function (n) { byId[n.id] = { id: n.id, ties: 0, nabs: 0, nmax: 0, bars: 0 }; });
+    res.nodes.forEach(function (n) {
+      byId[n.id] = { id: n.id, ties: 0, nabs: 0, nmax: 0, bars: 0, origine: "" };
+    });
+
     res.forces.forEach(function (f) {
       [f.i, f.j].forEach(function (id) {
         var r = byId[id]; if (!r) return;
         r.bars++;
         if (f.type === "tie") r.ties++;
-        if (Math.abs(f.N) > r.nabs) { r.nabs = Math.abs(f.N); r.nmax = f.N; }
+        if (Math.abs(f.N) > r.nabs) { r.nabs = Math.abs(f.N); r.nmax = f.N; r.origine = "barre"; }
       });
     });
+
+    // Reactions d'appui : deux composantes par noeud, dont on prend la norme.
+    var reac = {};
+    (res.reactions || []).forEach(function (rc) {
+      var v = reac[rc.node] || (reac[rc.node] = { x: 0, y: 0 });
+      if (rc.comp === "Rx") v.x = rc.value; else v.y = rc.value;
+    });
+    Object.keys(reac).forEach(function (id) {
+      var r = byId[id]; if (!r) return;
+      var norme = Math.sqrt(reac[id].x * reac[id].x + reac[id].y * reac[id].y);
+      if (norme > r.nabs) { r.nabs = norme; r.nmax = -norme; r.origine = "reaction"; }
+    });
+
+    // Charges appliquees : elles pressent la face chargee du noeud.
+    (res.loads || []).forEach(function (ld) {
+      var r = byId[ld.node]; if (!r) return;
+      var norme = Math.sqrt(ld.fx * ld.fx + ld.fy * ld.fy);
+      if (norme > r.nabs) { r.nabs = norme; r.nmax = -norme; r.origine = "charge"; }
+    });
+
     return res.nodes.map(function (n) { return byId[n.id]; });
   }
 
