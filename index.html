@@ -268,7 +268,8 @@ code{font-family:var(--mono); background:#eef1f5; padding:1px 5px; border-radius
         <p>Treillis plan articule : chaque barre ne reprend qu'un effort axial. Convention retenue : effort positif en traction (tirant), negatif en compression (bielle).</p>
         <p>Pour un modele isostatique, les efforts sont independants des rigidites ; aucune section ni module n'est demande. Un modele hyperstatique donnerait des efforts dependant des rigidites relatives, non saisies ici.</p>
         <p>Unites coherentes libres ; l'affichage suppose des forces en <code>kN</code> et des longueurs en <code>m</code>. Coordonnees et charges acceptent des expressions : <code>a/2</code>, <code>h*tan(pi/6)</code>, <code>-P</code>.</p>
-        <p>Aide au calcul. L'equilibre fourni est celui du treillis saisi ; l'admissibilite du modele bielle-tirant, la verification des bielles, tirants et noeuds selon EN 1992-1-1 (2004 &sect;6.5 ; 2023 &sect;8.5) et la responsabilite de conception restent celles de l'ingenieur.</p>
+        <p>Aide au calcul. L'equilibre fourni est celui du treillis saisi. La verification des noeuds est desormais outillee, mais sous une forme simplifiee : une seule surface par noeud, la plus grande force des barres qui y aboutissent, et une classe deduite du nombre de tirants. Elle ne dispense pas de l'examen face par face, ni de la verification des bielles, des tirants et de leurs ancrages. Les valeurs proposees pour <code>&alpha;<sub>cc</sub></code>, <code>&gamma;<sub>c</sub></code> et <code>k<sub>1</sub> k<sub>2</sub> k<sub>3</sub></code> sont les valeurs recommandees de l'EN 1992-1-1:2004, qu'une annexe nationale peut modifier.</p>
+        <p>L'admissibilite du modele bielle-tirant, la justification complete selon EN 1992-1-1 (2004 &sect;6.5 ; 2023 &sect;8.5) et la responsabilite de conception restent entieres et demeurent celles de l'ingenieur.</p>
       </details>
     </div>
 
