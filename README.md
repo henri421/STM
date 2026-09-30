@@ -1,5 +1,10 @@
 # Bielle-Tirant
 
+> **Dépôt archivé.** L'outil bielles-tirants de référence est désormais
+> **MBT** — [application](https://henri421.github.io/MBT/),
+> [dépôt](https://github.com/henri421/MBT). Ce dépôt n'est plus maintenu : ses
+> calculs ne reçoivent plus de correctifs.
+
 Application web autonome (PWA) qui calcule les efforts normaux dans un treillis plan, pour construire et exploiter un modele bielle-tirant sans recourir a un logiciel de structure ni resoudre la trigonometrie a la main. Tout tourne dans le navigateur, sans serveur ni envoi reseau, ce qui la rend installable et utilisable hors ligne, et compatible avec un traitement local de donnees sensibles.
 
 Le calcul repose sur la methode des rigidites (treillis plan articule, effort axial seul). Convention retenue : effort positif en traction (tirant), negatif en compression (bielle). Reference du modele : EN 1992-1-1:2004 section 6.5, reecrite en section 8.5 dans la deuxieme generation EN 1992-1-1:2023.
