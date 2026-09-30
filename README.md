@@ -59,3 +59,10 @@ Un bouton « Note de calcul » produit un document HTML autonome, ouvert dans un
 Les valeurs intermediaires ne sont pas un ornement : un sigma_Rd,max sans son nu' et son f_cd n'est pas verifiable par un tiers, et c'est a cela qu'une note sert. Le document est autonome — aucune ressource externe — et l'application continue de fonctionner hors ligne.
 
 C'est un compte rendu, pas une justification reglementaire signee.
+
+
+## Licence
+
+MIT — voir [LICENSE](LICENSE). Le logiciel est fourni « tel quel », **sans garantie
+d'aucune sorte**, expresse ou implicite. C'est une aide au calcul : les résultats
+relèvent de la responsabilité de l'ingénieur qui les emploie et doivent être vérifiés.
